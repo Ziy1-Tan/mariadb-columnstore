@@ -50,17 +50,23 @@ extern "C"
     curl_easy_cleanup(initData->curl);
   }
 
-  const char* columnstore_dataload(UDF_INIT* initid, UDF_ARGS* /*args*/, char* result,
+  const char* columnstore_dataload(UDF_INIT* initid, UDF_ARGS* args, char* result,
                                    unsigned long* length, char* /*is_null*/, char* /*error*/)
   {
     InitData* initData = (InitData*)(initid->ptr);
     CURLcode res;
     std::string readBuffer;
-
+    std::string folder = args->args[0];
+    std::string param = "{\"folder\" : \"" + folder + "\"}";
     if (initData->curl)
     {
-      curl_easy_setopt(initData->curl, CURLOPT_URL, "https://gnu.terminalroot.com.br/ip.php");
+      struct curl_slist *hs=NULL;
+      hs = curl_slist_append(hs, "Content-Type: application/json");
+      curl_easy_setopt(initData->curl, CURLOPT_HTTPHEADER, hs);
+      curl_easy_setopt(initData->curl, CURLOPT_URL, "http://localhost");
+      curl_easy_setopt(initData->curl, CURLOPT_PORT, 5000l);
       curl_easy_setopt(initData->curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+      curl_easy_setopt(initData->curl, CURLOPT_POSTFIELDS, param.c_str());
       curl_easy_setopt(initData->curl, CURLOPT_WRITEDATA, &readBuffer);
       res = curl_easy_perform(initData->curl);
     }
@@ -75,13 +81,14 @@ extern "C"
 
   my_bool columnstore_dataload_init(UDF_INIT* initid, UDF_ARGS* args, char* message)
   {
+    initid->max_length = 1000*1000;
     InitData* initData = new InitData;
     initData->curl = curl_easy_init();
     initid->ptr = (char*)(initData);
 
-    if (args->arg_count != 0)
+    if (args->arg_count != 1)
     {
-      strcpy(message, "COLUMNSTORE_DATALOAD() takes no arguments");
+      strcpy(message, "COLUMNSTORE_DATALOAD() takes one arguments");
       return 1;
     }
 
