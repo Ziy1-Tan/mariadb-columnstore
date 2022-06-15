@@ -1,0 +1,153 @@
+#-- source ../include/have_columnstore.inc
+
+--disable_warnings
+DROP DATABASE IF EXISTS json_with_mcs_db;
+--enable_warnings
+
+CREATE DATABASE json_with_mcs_db;
+USE json_with_mcs_db;
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_VALID function.
+--echo # ----------------------------------------------------------------------
+--echo
+--echo # String literal - valid JSON
+create table t1(a longtext) engine=columnstore;
+insert into t1 values(NULL);
+select JSON_VALID('123') from t1;             # uint
+select JSON_VALID('-123') from t1;            # int
+select JSON_VALID('5000000000') from t1;      # uint64
+select JSON_VALID('-5000000000') from t1;     # int64
+select JSON_VALID('1.23') from t1;            # double
+select JSON_VALID('"123"') from t1;
+select JSON_VALID('true') from t1;
+select JSON_VALID('false') from t1;
+select JSON_VALID('null') from t1;
+select JSON_VALID('{"address": "Trondheim"}') from t1;
+
+--echo
+--echo # String literal - valid JSON
+select JSON_VALID('12 3'),a from t1;
+
+--echo
+--echo # String literal not in UTF-8
+set names 'ascii';
+# auto-convert to utf-8
+select JSON_VALID("123") from t1;
+set names 'utf8';
+
+--echo
+--echo # Bare NULL
+select JSON_VALID(NULL) from t1;
+
+--echo
+--echo # Function result - string
+select JSON_VALID( UPPER('"abc"') ) from t1;
+
+--echo
+--echo # Function result - string
+set names 'latin1';
+# auto-convert to utf-8
+select JSON_VALID(UPPER('"abc"')) from t1;
+set names 'utf8';
+
+--echo
+--echo # Function result - date, not valid as JSON without CAST
+select JSON_VALID( CAST('2015-01-15' AS DATE) ) from t1;
+
+--echo
+--echo # The date string doesn't parse as JSON text, so wrong:
+select JSON_VALID( CAST(CAST('2015-01-15' AS DATE) as CHAR CHARACTER SET 'utf8') );
+
+--echo
+--echo # Function result - NULL
+select JSON_VALID( UPPER(NULL) ) from t1;
+select JSON_VALID( UPPER(CAST(NULL as CHAR)) ) from t1;
+
+# return 1
+select JSON_VALID( '{ "firstName" : "Fred", "lastName" : "Flintstone" }' ) from t1;
+select JSON_VALID( '3' ) from t1;
+
+# returns NULL as IS JSON would
+select JSON_VALID( null ) from t1;
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_DEPTH function.
+--echo # ----------------------------------------------------------------------
+
+# return NULL
+select JSON_DEPTH(null) from t1;
+# return 1
+select JSON_DEPTH
+(
+'{}'
+) from t1;
+select JSON_DEPTH
+(
+'[]'
+) from t1;
+select JSON_DEPTH( '"abc"' ) from t1;
+
+--echo error ER_INVALID_TYPE_FOR_JSON
+select JSON_DEPTH( 1 ) from t1;
+
+--echo error ER_INVALID_JSON_TEXT_IN_PARAM
+select JSON_DEPTH( 'abc' ) from t1;
+
+# return 2
+select JSON_DEPTH
+(
+  '{ "a" : true, "b" : false, "c" : null }'
+) from t1;
+select JSON_DEPTH
+(
+  '[ "a", true, "b" , false, "c" , null ]'
+) from t1;
+select JSON_DEPTH
+(
+  '{ "a" : true, "b" : {}, "c" : null }'
+) from t1;
+select JSON_DEPTH
+(
+  '[ "a", true, "b" , {}, "c" , null ]'
+) from t1;
+select JSON_DEPTH
+(
+  '{ "a" : true, "b" : { "e" : false }, "c" : null }'
+) from t1;
+# returns 3
+select JSON_DEPTH
+(
+  '[ "a", true, "b" , { "e" : false }, "c" , null ]'
+) from t1;
+
+--echo error ER_INVALID_JSON_TEXT_IN_PARAM
+select JSON_DEPTH
+(
+  '[ "a", true, "b" , { "e" : false }, "c" , null'
+) from t1;
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_DEPTH function.
+--echo # ----------------------------------------------------------------------
+
+# return 1
+select JSON_EQUALS('{"a":1,"b":2}','{"a":1,"b":2}') from t1;
+select JSON_EQUALS('{"a":1,"b":2}','{"b":2,"a":1}') from t1;
+select JSON_EQUALS('{"a":1,"b":2}','{"a":  1,"b":  2}') from t1;
+select JSON_EQUALS('{"a":    1,"b":2}','{"b":2,"a":1}') from t1;
+select JSON_EQUALS('[1,2]','[1,2]') from t1;
+select JSON_EQUALS('[1,2]','[1   ,  2]') from t1;
+select JSON_EQUALS(1,1) from t1;
+
+# return 0
+select JSON_EQUALS('{"a":1,"b":3}','{"a":1,"b":2}') from t1;
+select JSON_EQUALS('[1,2]','[2,1]') from t1;
+select JSON_EQUALS(1,2) from t1;
+
+# return NULL
+select JSON_EQUALS('["a",true,{"e":false},null','["a",true,{"e":false},null') from t1;
+select JSON_EQUALS('s1',"s1") from t1;
+
+DROP TABLE t1;
+DROP DATABASE json_with_mcs_db;
