@@ -336,4 +336,41 @@ class Func_IsNotFalse : public Func_Truth
   }
 };
 
+/** @brief Func_json_valid class
+ */
+class Func_json_valid : public Func_Bool
+{
+ public:
+  Func_json_valid() : Func_Bool("json_valid")
+  {
+  }
+  ~Func_json_valid()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  bool getBoolVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                  execplan::CalpontSystemCatalog::ColType& op_ct);
+};
+
+/** @brief Func_json_equals class
+ */
+class Func_json_equals : public Func_Bool
+{
+ public:
+  Func_json_equals() : Func_Bool("json_equals")
+  {
+  }
+  ~Func_json_equals()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  bool getBoolVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                  execplan::CalpontSystemCatalog::ColType& op_ct);
+};
 }  // namespace funcexp
