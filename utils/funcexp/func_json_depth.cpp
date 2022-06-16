@@ -1,11 +1,8 @@
-#define PREFER_MY_CONFIG_H
-#include <my_global.h>
-#include <json_lib.h>
 #include <cstring>
 #include <string>
 using namespace std;
 
-#include "functor_int.h"
+#include "functor_json.h"
 #include "functioncolumn.h"
 using namespace execplan;
 

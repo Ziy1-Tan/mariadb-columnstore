@@ -1,13 +1,10 @@
-#define PREFER_MY_CONFIG_H
-#include <my_global.h>
-#include <json_lib.h>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 #include <sstream>
 using namespace std;
 
-#include "functor_bool.h"
+#include "functor_json.h"
 #include "functioncolumn.h"
 #include "rowgroup.h"
 using namespace execplan;
