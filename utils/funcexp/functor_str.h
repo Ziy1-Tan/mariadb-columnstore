@@ -1061,4 +1061,22 @@ class Func_decode : public Func_Str
   ulong fSeeds[2];
 };
 
+/** @brief Func_json_type class
+ */
+class Func_json_type : public Func_Str
+{
+ public:
+  Func_json_type() : Func_Str("json_type")
+  {
+  }
+  virtual ~Func_json_type()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                        execplan::CalpontSystemCatalog::ColType& op_ct);
+};
 }  // namespace funcexp
