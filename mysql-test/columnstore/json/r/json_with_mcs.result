@@ -221,14 +221,14 @@ JSON_EQUALS('[1,2]','[1   ,  2]')
 select JSON_EQUALS(1,1) from t1;
 JSON_EQUALS(1,1)
 1
-select JSON_EQUALS(1,2) from t1;
-JSON_EQUALS(1,2)
-0
 select JSON_EQUALS('{"a":1,"b":3}','{"a":1,"b":2}') from t1;
 JSON_EQUALS('{"a":1,"b":3}','{"a":1,"b":2}')
 0
 select JSON_EQUALS('[1,2]','[2,1]') from t1;
 JSON_EQUALS('[1,2]','[2,1]')
+0
+select JSON_EQUALS(1,2) from t1;
+JSON_EQUALS(1,2)
 0
 select JSON_EQUALS('["a",true,{"e":false},null','["a",true,{"e":false},null') from t1;
 JSON_EQUALS('["a",true,{"e":false},null','["a",true,{"e":false},null')
@@ -236,5 +236,11 @@ NULL
 select JSON_EQUALS('s1',"s1") from t1;
 JSON_EQUALS('s1',"s1")
 NULL
+# ----------------------------------------------------------------------
+# Test of JSON_DEPTH function.
+# ----------------------------------------------------------------------
+select JSON_TYPE("{}") from t1;
+JSON_TYPE("{}")
+OBJE
 DROP TABLE t1;
 DROP DATABASE json_with_mcs_db;

@@ -149,5 +149,12 @@ select JSON_EQUALS(1,2) from t1;
 select JSON_EQUALS('["a",true,{"e":false},null','["a",true,{"e":false},null') from t1;
 select JSON_EQUALS('s1',"s1") from t1;
 
+
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_TYPE function.
+--echo # ----------------------------------------------------------------------
+
+select JSON_TYPE("{}") from t1;
+
 DROP TABLE t1;
 DROP DATABASE json_with_mcs_db;
