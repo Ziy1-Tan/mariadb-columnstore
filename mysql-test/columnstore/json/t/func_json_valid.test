@@ -1,0 +1,68 @@
+#-- source ../include/have_columnstore.inc
+--disable_warnings
+
+DROP DATABASE IF EXISTS json_valid_db;
+--enable_warnings
+
+CREATE DATABASE json_valid_db; 
+USE json_valid_db;
+--echo # ----------------------------------------------------------------------
+--echo # Test of JSON_VALID function.
+--echo # ----------------------------------------------------------------------
+--echo # String literal - valid JSON
+
+CREATE TABLE t1(l LONGTEXT) ENGINE = columnstore;
+INSERT INTO t1 VALUES('123');
+INSERT INTO t1 VALUES('-123');
+INSERT INTO t1 VALUES('5000000000');
+INSERT INTO t1 VALUES('-5000000000');
+INSERT INTO t1 VALUES('1.23');
+INSERT INTO t1 VALUES('"123"');
+INSERT INTO t1 VALUES('true');
+INSERT INTO t1 VALUES('false');
+INSERT INTO t1 VALUES('null');
+INSERT INTO t1 VALUES('{"address": "Trondheim"}');
+
+SELECT JSON_VALID(l) FROM t1;
+--echo # String literal - invalid JSON
+TRUNCATE t1;
+INSERT INTO t1 VALUES('12 3');
+SELECT JSON_VALID(l) FROM t1;
+--echo # String literal - not in UTF-8
+TRUNCATE t1;
+SET NAMES 'ascii';
+INSERT INTO t1 VALUES('123');
+SELECT JSON_VALID(l) FROM t1;
+SET NAMES 'utf8';
+--echo # Bare NULL
+TRUNCATE t1;
+INSERT INTO t1 VALUES(NULL);
+SELECT JSON_VALID(l) FROM t1;
+--echo # Function result - string
+TRUNCATE t1;
+INSERT INTO t1 VALUES(UPPER('"abc"'));
+SELECT JSON_VALID(l) FROM t1;
+--echo # Function result - string not in UTF-8
+TRUNCATE t1;
+SET NAMES 'latin1';
+INSERT INTO t1 VALUES(UPPER('"abc"'));
+SELECT JSON_VALID(l) FROM t1;
+SET NAMES 'utf8';
+--echo # Function result - date, not valid as JSON without CAST
+TRUNCATE t1;
+INSERT INTO t1 VALUES(CAST('2015-01-15' AS DATE));
+SELECT JSON_VALID(l) FROM t1;
+--echo # The date string doesn't parse as JSON text, so wrong:
+TRUNCATE t1;
+INSERT INTO t1 VALUES(CAST(CAST('2015-01-15' AS DATE) as CHAR CHARACTER SET 'utf8'));
+SELECT JSON_VALID(l) FROM t1;
+--echo # Function result - NULL
+TRUNCATE t1;
+INSERT INTO t1 VALUES(UPPER(NULL));
+INSERT INTO t1 VALUES(UPPER(CAST(NULL AS CHAR)));
+SELECT JSON_VALID(l) FROM t1;
+
+DROP TABLE t1;
+DROP DATABASE json_valid_db;
+
+INSERT INTO t1 VALUES('a');
