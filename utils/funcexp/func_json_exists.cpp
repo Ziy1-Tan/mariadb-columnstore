@@ -17,6 +17,7 @@ namespace funcexp
 CalpontSystemCatalog::ColType Func_json_exists::operationType(FunctionParm& fp,
                                                               CalpontSystemCatalog::ColType& resultType)
 {
+  path.set_constant_flag(fp[2]->data()->getIntVal());
   return fp[0]->data()->resultType();
 }
 
@@ -27,7 +28,7 @@ bool Func_json_exists::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
                                   CalpontSystemCatalog::ColType& op_ct)
 {
   json_engine_t je;
-  uint array_counters[JSON_DEPTH_LIMIT];
+  int array_counters[JSON_DEPTH_LIMIT];
 
   const std::string json_str = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
@@ -35,17 +36,19 @@ bool Func_json_exists::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
   const char* js = json_str.c_str();
   const CHARSET_INFO* js_cs = fp[0]->data()->resultType().getCharset();
 
-  // TODO: path.parsed
-  const std::string path_str = fp[1]->data()->getStrVal(row, isNull);
-  if (isNull)
-    return false;
-
-  const char* s_p = path_str.c_str();
-  CHARSET_INFO* s_p_cs = fp[1]->data()->resultType().getCharset();
-  if (s_p && json_path_setup(&path.p, s_p_cs, (const uchar*)s_p, (const uchar*)s_p + strlen(s_p)))
+  if (!path.parsed)
   {
-    isNull = true;
-    return false;
+    const std::string path_str = fp[1]->data()->getStrVal(row, isNull);
+    if (isNull)
+      return false;
+
+    const char* s_p = path_str.c_str();
+    CHARSET_INFO* s_p_cs = fp[1]->data()->resultType().getCharset();
+    if (s_p && json_path_setup(&path.p, s_p_cs, (const uchar*)s_p, (const uchar*)s_p + strlen(s_p)))
+    {
+      isNull = true;
+      return false;
+    }
   }
 
   isNull = false;
