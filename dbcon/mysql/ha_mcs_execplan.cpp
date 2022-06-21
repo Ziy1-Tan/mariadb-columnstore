@@ -4245,6 +4245,17 @@ ReturnedColumn* buildFunctionColumn(Item_func* ifp, gp_walk_info& gwi, bool& non
       (dynamic_cast<ConstantColumn*>(sptp->data()))->timeZone(gwi.timeZone);
       funcParms.push_back(sptp);
     }
+    // Add the constant argument
+    if ((funcName == "json_exists") || (funcName == "json_length"))
+    {
+      if (funcParms.size() > 1)
+      {
+        const int64_t constant_flag = ifp->arguments()[1]->const_item() ? 1 : 0;
+        sptp.reset(new ParseTree(new ConstantColumn(constant_flag)));
+        (dynamic_cast<ConstantColumn*>(sptp->data()))->timeZone(gwi.timeZone);
+        funcParms.push_back(sptp);
+      }
+    }
 
     fc->functionName(funcName);
     fc->functionParms(funcParms);
