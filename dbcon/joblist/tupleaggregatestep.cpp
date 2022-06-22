@@ -352,6 +352,7 @@ TupleAggregateStep::TupleAggregateStep(const SP_ROWAGG_UM_t& agg, const RowGroup
 
   fExtendedInfo = "TAS: ";
   fQtc.stepParms().stepType = StepTeleStats::T_TAS;
+  fPrimitiveServerThreadPools = jobInfo.primitiveServerThreadPools;
 }
 
 TupleAggregateStep::~TupleAggregateStep()
@@ -5432,11 +5433,10 @@ void TupleAggregateStep::threadedAggregateRowGroups(uint32_t threadID)
           if (more)
           {
             fRowGroupIns[threadID].setData(&rgData);
-            fMemUsage[threadID] += fRowGroupIns[threadID].getSizeWithStrings();
 
             bool diskAggAllowed = fRm->getAllowDiskAggregation();
-            if (!fRm->getMemory(fRowGroupIns[threadID].getSizeWithStrings(), fSessionMemLimit,
-                                !diskAggAllowed))
+            int64_t memSize = fRowGroupIns[threadID].getSizeWithStrings();
+            if (!fRm->getMemory(memSize, fSessionMemLimit, !diskAggAllowed))
             {
               if (!diskAggAllowed)
               {
@@ -5456,6 +5456,7 @@ void TupleAggregateStep::threadedAggregateRowGroups(uint32_t threadID)
               }
               break;
             }
+            fMemUsage[threadID] += memSize;
             rgDatas.push_back(rgData);
           }
           else

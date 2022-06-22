@@ -56,10 +56,12 @@ extern uint32_t highPriorityThreads, medPriorityThreads, lowPriorityThreads;
 
 class BPPSendThread;
 
+class PrimitiveServer;
+
 class BPPV
 {
  public:
-  BPPV();
+  BPPV(PrimitiveServer* ps);
   ~BPPV();
   boost::shared_ptr<BatchPrimitiveProcessor> next();
   void add(boost::shared_ptr<BatchPrimitiveProcessor> a);
@@ -133,6 +135,11 @@ class PrimitiveServer
     return fProcessorPool;
   }
 
+  inline boost::shared_ptr<threadpool::PriorityThreadPool> getOOBThreadPool() const
+  {
+    return fOOBPool;
+  }
+
   // 			int fCacheCount;
   int ReadAheadBlocks() const
   {
@@ -166,6 +173,7 @@ class PrimitiveServer
    * primitive commands
    */
   boost::shared_ptr<threadpool::PriorityThreadPool> fProcessorPool;
+  boost::shared_ptr<threadpool::PriorityThreadPool> fOOBPool;
 
   int fServerThreads;
   int fServerQueueSize;
