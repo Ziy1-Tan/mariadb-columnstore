@@ -16,22 +16,22 @@ namespace funcexp
 CalpontSystemCatalog::ColType Func_json_type::operationType(FunctionParm& fp,
                                                             CalpontSystemCatalog::ColType& resultType)
 {
-  return fp[0]->data()->resultType();
+  return resultType;
 }
 
 std::string Func_json_type::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                       execplan::CalpontSystemCatalog::ColType& op_ct)
 {
-  const std::string& str = fp[0]->data()->getStrVal(row, isNull);
-  CHARSET_INFO* cs = fp[0]->data()->resultType().getCharset();
+  const std::string& tmp_js = fp[0]->data()->getStrVal(row, isNull);
+  CHARSET_INFO* cs = op_ct.getCharset();
 
   json_engine_t je;
-  string type;
+  string json_type;
 
   if (isNull)
     return "";
 
-  const char* js = str.c_str();
+  const char* js = tmp_js.c_str();
 
   json_scan_start(&je, cs, (const uchar*)js, (const uchar*)js + strlen(js));
 
@@ -44,16 +44,16 @@ std::string Func_json_type::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool
 
   switch (je.value_type)
   {
-    case JSON_VALUE_OBJECT: type = "OBJECT"; break;
-    case JSON_VALUE_ARRAY: type = "ARRAY"; break;
-    case JSON_VALUE_STRING: type = "STRING"; break;
-    case JSON_VALUE_NUMBER: type = (je.num_flags & JSON_NUM_FRAC_PART) ? "DOUBLE" : "INTEGER"; break;
+    case JSON_VALUE_OBJECT: json_type = "OBJECT"; break;
+    case JSON_VALUE_ARRAY: json_type = "ARRAY"; break;
+    case JSON_VALUE_STRING: json_type = "STRING"; break;
+    case JSON_VALUE_NUMBER: json_type = (je.num_flags & JSON_NUM_FRAC_PART) ? "DOUBLE" : "INTEGER"; break;
     case JSON_VALUE_TRUE:
-    case JSON_VALUE_FALSE: type = "BOOLEAN"; break;
-    default: type = "NULL"; break;
+    case JSON_VALUE_FALSE: json_type = "BOOLEAN"; break;
+    default: json_type = "NULL"; break;
   }
 
-  return type;
+  return json_type;
 }
 
 }  // namespace funcexp
