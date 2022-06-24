@@ -143,6 +143,7 @@ FuncExp::FuncExp()
   fFuncMap["isnottrue"] = new Func_IsNotTrue();
   fFuncMap["isfalse"] = new Func_IsFalse();
   fFuncMap["isnotfalse"] = new Func_IsNotFalse();
+  fFuncMap["json_depth"] = new Func_json_depth();
   fFuncMap["json_valid"] = new Func_json_valid();
   fFuncMap["last_day"] = new Func_last_day();
   fFuncMap["lcase"] = new Func_lcase();  // dlh
