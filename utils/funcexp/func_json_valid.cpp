@@ -1,7 +1,4 @@
-#include <cstdlib>
-#include <cstring>
-#include <string>
-#include <sstream>
+#include <string_view>
 using namespace std;
 
 #include "functor_json.h"
@@ -26,15 +23,11 @@ CalpontSystemCatalog::ColType Func_json_valid::operationType(FunctionParm& fp,
 bool Func_json_valid::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
                                  CalpontSystemCatalog::ColType& type)
 {
-  const string& tmp_js = fp[0]->data()->getStrVal(row, isNull);
-  CHARSET_INFO* cs = fp[0]->data()->resultType().getCharset();
+  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
 
   if (isNull)
     return false;
 
-  const char* js = tmp_js.c_str();
-
-  return json_valid(js, strlen(js), cs);
+  return json_valid(tmpJs.data(), tmpJs.size(), fp[0]->data()->resultType().getCharset());
 }
-
 }  // namespace funcexp
