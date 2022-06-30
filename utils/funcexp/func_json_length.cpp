@@ -28,7 +28,7 @@ int64_t Func_json_length::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& 
   const std::string tmp_js = fp[0]->data()->getStrVal(row, isNull);
   json_engine_t je;
   uint length = 0;
-  int array_counters[JSON_DEPTH_LIMIT];
+  uint array_counters[JSON_DEPTH_LIMIT];
   int err;
 
   if (isNull)
