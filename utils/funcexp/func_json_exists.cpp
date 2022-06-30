@@ -28,7 +28,7 @@ bool Func_json_exists::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
                                   CalpontSystemCatalog::ColType& op_ct)
 {
   json_engine_t je;
-  int array_counters[JSON_DEPTH_LIMIT];
+  uint array_counters[JSON_DEPTH_LIMIT];
 
   const std::string json_str = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
