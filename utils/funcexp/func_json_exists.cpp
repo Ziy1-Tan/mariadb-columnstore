@@ -6,6 +6,7 @@ using namespace std;
 
 #include "functor_json.h"
 #include "functioncolumn.h"
+#include "constantcolumn.h"
 #include "rowgroup.h"
 using namespace execplan;
 using namespace rowgroup;
@@ -17,34 +18,35 @@ namespace funcexp
 CalpontSystemCatalog::ColType Func_json_exists::operationType(FunctionParm& fp,
                                                               CalpontSystemCatalog::ColType& resultType)
 {
-  path.set_constant_flag(fp[2]->data()->getIntVal());
-  return fp[0]->data()->resultType();
+  return resultType;
 }
 
 /**
  * getBoolVal API definition
  */
 bool Func_json_exists::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
-                                  CalpontSystemCatalog::ColType& op_ct)
+                                  CalpontSystemCatalog::ColType& type)
 {
+  const string tmp_js = fp[0]->data()->getStrVal(row, isNull);
+  if (isNull)
+    return false;
+
   json_engine_t je;
   uint array_counters[JSON_DEPTH_LIMIT];
 
-  const std::string json_str = fp[0]->data()->getStrVal(row, isNull);
-  if (isNull)
-    return false;
-  const char* js = json_str.c_str();
+  const char* js = tmp_js.c_str();
   const CHARSET_INFO* js_cs = fp[0]->data()->resultType().getCharset();
 
   if (!path.parsed)
   {
-    const std::string path_str = fp[1]->data()->getStrVal(row, isNull);
+    const string tmp_path = fp[1]->data()->getStrVal(row, isNull);
     if (isNull)
       return false;
 
-    const char* s_p = path_str.c_str();
-    CHARSET_INFO* s_p_cs = fp[1]->data()->resultType().getCharset();
-    if (s_p && json_path_setup(&path.p, s_p_cs, (const uchar*)s_p, (const uchar*)s_p + strlen(s_p)))
+    const char* path_str = tmp_path.c_str();
+    const CHARSET_INFO* path_cs = fp[1]->data()->resultType().getCharset();
+    if (path_str &&
+        json_path_setup(&path.p, path_cs, (const uchar*)path_str, (const uchar*)path_str + strlen(path_str)))
     {
       isNull = true;
       return false;
@@ -67,5 +69,4 @@ bool Func_json_exists::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
 
   return true;
 }
-
 }  // namespace funcexp

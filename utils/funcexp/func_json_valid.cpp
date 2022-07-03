@@ -17,24 +17,23 @@ namespace funcexp
 CalpontSystemCatalog::ColType Func_json_valid::operationType(FunctionParm& fp,
                                                              CalpontSystemCatalog::ColType& resultType)
 {
-  return fp[0]->data()->resultType();
+  return resultType;
 }
 
 /**
  * getBoolVal API definition
  */
 bool Func_json_valid::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
-                                 CalpontSystemCatalog::ColType& op_ct)
+                                 CalpontSystemCatalog::ColType& type)
 {
-  const std::string& str = fp[0]->data()->getStrVal(row, isNull);
+  const string& tmp_js = fp[0]->data()->getStrVal(row, isNull);
   CHARSET_INFO* cs = fp[0]->data()->resultType().getCharset();
 
   if (isNull)
     return false;
 
-  const char* js = str.c_str();
+  const char* js = tmp_js.c_str();
 
   return json_valid(js, strlen(js), cs);
 }
-
 }  // namespace funcexp

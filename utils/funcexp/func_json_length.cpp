@@ -3,7 +3,9 @@
 using namespace std;
 
 #include "functor_json.h"
+#include "jsonfunchelpers.h"
 #include "functioncolumn.h"
+#include "constantcolumn.h"
 using namespace execplan;
 
 #include "rowgroup.h"
@@ -14,18 +16,33 @@ using namespace dataconvert;
 
 namespace funcexp
 {
+namespace helpers
+{
+int path_setup_nwc(json_path_t* p, CHARSET_INFO* i_cs, const uchar* str, const uchar* end)
+{
+  if (!json_path_setup(p, i_cs, str, end))
+  {
+    if ((p->types_used & (JSON_PATH_WILD | JSON_PATH_DOUBLE_WILD)) == 0)
+      return 0;
+    p->s.error = NO_WILDCARD_ALLOWED;
+  }
+
+  return 1;
+}
+}  // namespace helpers
+}  // namespace funcexp
+namespace funcexp
+{
 CalpontSystemCatalog::ColType Func_json_length::operationType(FunctionParm& fp,
                                                               CalpontSystemCatalog::ColType& resultType)
 {
-  if (fp.size() > 1)
-    path.set_constant_flag(fp[2]->data()->getIntVal());
   return resultType;
 }
 
 int64_t Func_json_length::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
-                                    execplan::CalpontSystemCatalog::ColType& op_ct)
+                                    execplan::CalpontSystemCatalog::ColType& type)
 {
-  const std::string tmp_js = fp[0]->data()->getStrVal(row, isNull);
+  const string tmp_js = fp[0]->data()->getStrVal(row, isNull);
   json_engine_t je;
   uint length = 0;
   uint array_counters[JSON_DEPTH_LIMIT];
@@ -40,19 +57,16 @@ int64_t Func_json_length::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& 
 
   if (fp.size() > 1)
   {
-    if (!path.parsed)
+    const string tmp_path = fp[1]->data()->getStrVal(row, isNull);
+    if (isNull)
+      return 0;
+    const char* path_str = tmp_path.c_str();
+    const CHARSET_INFO* path_cs = fp[1]->data()->resultType().getCharset();
+    if (path_str && helpers::path_setup_nwc(&path.p, path_cs, (const uchar*)path_str,
+                                            (const uchar*)path_str + strlen(path_str)))
     {
-      const std::string tmp_path = fp[1]->data()->getStrVal(row, isNull);
-      if (isNull)
-        return 0;
-      const char* s_p = tmp_path.c_str();
-      const CHARSET_INFO* s_p_cs = fp[1]->data()->resultType().getCharset();
-      if (s_p && path_setup_nwc(&path.p, s_p_cs, (const uchar*)s_p, (const uchar*)s_p + strlen(s_p)))
-      {
-        isNull = true;
-        return 0;
-      }
-      path.parsed = path.constant;
+      isNull = true;
+      return 0;
     }
 
     path.cur_step = path.p.steps;
@@ -107,5 +121,4 @@ int64_t Func_json_length::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& 
   isNull = true;
   return 0;
 }
-
 }  // namespace funcexp

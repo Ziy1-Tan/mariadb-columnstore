@@ -21,10 +21,10 @@ CalpontSystemCatalog::ColType Func_json_depth::operationType(FunctionParm& fp,
 }
 
 int64_t Func_json_depth::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
-                                   execplan::CalpontSystemCatalog::ColType& op_ct)
+                                   execplan::CalpontSystemCatalog::ColType& type)
 {
-  const std::string& str = fp[0]->data()->getStrVal(row, isNull);
-  CHARSET_INFO* cs = fp[0]->data()->resultType().getCharset();
+  const string tmp_js = fp[0]->data()->getStrVal(row, isNull);
+  const CHARSET_INFO* cs = type.getCharset();
 
   json_engine_t je;
   uint depth = 0, c_depth = 0;
@@ -33,7 +33,7 @@ int64_t Func_json_depth::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& i
   if (isNull)
     return 0;
 
-  const char* js = str.c_str();
+  const char* js = tmp_js.c_str();
 
   json_scan_start(&je, cs, (const uchar*)js, (const uchar*)js + strlen(js));
 
@@ -66,9 +66,7 @@ int64_t Func_json_depth::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& i
   if (likely(!je.s.error))
     return depth;
 
-  // TODO: report_json_error(js, &je, 0);
   isNull = true;
   return 0;
 }
-
 }  // namespace funcexp
