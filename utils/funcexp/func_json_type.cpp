@@ -19,14 +19,14 @@ CalpontSystemCatalog::ColType Func_json_type::operationType(FunctionParm& fp,
   return resultType;
 }
 
-std::string Func_json_type::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
-                                      execplan::CalpontSystemCatalog::ColType& op_ct)
+string Func_json_type::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                                      execplan::CalpontSystemCatalog::ColType& type)
 {
-  const std::string& tmp_js = fp[0]->data()->getStrVal(row, isNull);
-  CHARSET_INFO* cs = op_ct.getCharset();
+  const string& tmp_js = fp[0]->data()->getStrVal(row, isNull);
+  CHARSET_INFO* cs = type.getCharset();
 
   json_engine_t je;
-  string json_type;
+  const char* json_type;
 
   if (isNull)
     return "";
@@ -37,7 +37,6 @@ std::string Func_json_type::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool
 
   if (json_read_value(&je))
   {
-    // TODO: report_json_error_ex()
     isNull = true;
     return "";
   }
@@ -55,5 +54,4 @@ std::string Func_json_type::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool
 
   return json_type;
 }
-
 }  // namespace funcexp

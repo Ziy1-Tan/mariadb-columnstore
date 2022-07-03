@@ -17,14 +17,14 @@ namespace funcexp
 CalpontSystemCatalog::ColType Func_json_equals::operationType(FunctionParm& fp,
                                                               CalpontSystemCatalog::ColType& resultType)
 {
-  return fp[0]->data()->resultType();
+  return resultType;
 }
 
 /**
  * getBoolVal API definition
  */
 bool Func_json_equals::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
-                                  CalpontSystemCatalog::ColType& op_ct)
+                                  CalpontSystemCatalog::ColType& type)
 {
   bool result = false;
 
@@ -85,5 +85,4 @@ bool Func_json_equals::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
   result = strcmp(a_res.str, b_res.str) ? false : true;
   return result;
 }
-
 }  // namespace funcexp

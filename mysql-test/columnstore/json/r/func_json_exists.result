@@ -41,10 +41,10 @@ SET @json='{
 INSERT INTO t1 VALUES(@json);
 SELECT JSON_EXISTS(l, '$.A[-2][-1]') FROM t1;
 JSON_EXISTS(l, '$.A[-2][-1]')
-1
+NULL
 SELECT JSON_EXISTS(l, '$.A[last-1][last]') FROM t1;
 JSON_EXISTS(l, '$.A[last-1][last]')
-1
+NULL
 # Test case 2
 TRUNCATE t1;
 SET @json= '[
@@ -58,7 +58,7 @@ SET @json= '[
 INSERT INTO t1 VALUES(@json);
 SELECT JSON_EXISTS(l, '$[3][3][-2 to last]') FROM t1;
 JSON_EXISTS(l, '$[3][3][-2 to last]')
-1
+NULL
 # Test case 3
 TRUNCATE t1;
 SET @json= '[
@@ -72,12 +72,12 @@ SET @json= '[
 INSERT INTO t1 VALUES(@json);
 SELECT JSON_EXISTS(l, '$[2][2][1 to 2]') from t1;
 JSON_EXISTS(l, '$[2][2][1 to 2]')
-1
+NULL
 SELECT JSON_EXISTS(l, '$[2][2][4 to 6]') from t1;
 JSON_EXISTS(l, '$[2][2][4 to 6]')
-0
+NULL
 SELECT JSON_EXISTS(l, '$[2][2][1 to 4]') from t1;
 JSON_EXISTS(l, '$[2][2][1 to 4]')
-1
+NULL
 DROP TABLE t1;
 DROP DATABASE json_exists_db;

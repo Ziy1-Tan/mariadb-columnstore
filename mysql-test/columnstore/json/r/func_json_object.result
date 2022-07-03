@@ -1,10 +1,10 @@
-DROP DATABASE IF EXISTS json_type_db;
-CREATE DATABASE json_type_db;
-USE json_type_db;
+DROP DATABASE IF EXISTS json_object_db;
+CREATE DATABASE json_object_db;
+USE json_object_db;
 # ----------------------------------------------------------------------
-# Test of JSON_TYPE function.
+# Test of JSON_OBJECT function.
 # ----------------------------------------------------------------------
-CREATE TABLE t1(l LONGTEXT) ENGINE = columnstore;
+CREATE TABLE t1(l TEXT) ENGINE = columnstore;
 INSERT INTO t1 VALUES('a');
 SELECT json_object(l) FROM t1;
 ERROR 42000: Incorrect parameter count in the call to native function 'json_object'
@@ -15,28 +15,31 @@ TRUNCATE t1;
 INSERT INTO t1 values(null);
 SELECT JSON_OBJECT(l, 1) FROM t1;
 JSON_OBJECT(l, 1)
-NULL
+{"": null}
 SELECT JSON_OBJECT(1, l) FROM t1;
 JSON_OBJECT(1, l)
-NULL
+{"1": null}
 # Valid arg
 TRUNCATE t1;
 INSERT INTO t1 values('a');
 SELECT JSON_OBJECT(l, null) FROM t1;
 JSON_OBJECT(l, null)
-NULL
+{"a": null}
 SELECT JSON_OBJECT(l, 1) FROM t1;
 JSON_OBJECT(l, 1)
-{"a": "1"}
+{"a": 1}
 SELECT JSON_OBJECT(l, 1, 'b', 'foo') FROM t1;
 JSON_OBJECT(l, 1, 'b', 'foo')
-{"a": "1""b": "foo"}
+{"a": 1, "b": "foo"}
 SELECT JSON_OBJECT(l, 1, 'b', 'foo','c','{ "d": "e" }') FROM t1;
 JSON_OBJECT(l, 1, 'b', 'foo','c','{ "d": "e" }')
-{"a": "1""b": "foo""c": "{ \"d\": \"e\" }"}
+{"a": 1, "b": "foo", "c": "{ \"d\": \"e\" }"}
 SELECT JSON_OBJECT(l, true, 'b', false, 'c', null ) FROM t1;
 JSON_OBJECT(l, true, 'b', false, 'c', null )
-NULL
+{"a": true, "b": false, "c": null}
+SELECT JSON_OBJECT(l, 'true', 'b', 'false', 'c', null ) FROM t1;
+JSON_OBJECT(l, 'true', 'b', 'false', 'c', null )
+{"a": "true", "b": "false", "c": null}
 SELECT JSON_VALID(json_object(l, 1 )) from t1;
 JSON_VALID(json_object(l, 1 ))
 1
@@ -66,4 +69,4 @@ SELECT JSON_OBJECT(CAST(false AS CHAR), l) FROM t1;
 JSON_OBJECT(CAST(false AS CHAR), l)
 {"0": "a"}
 DROP TABLE t1;
-DROP DATABASE json_type_db;
+DROP DATABASE json_object_db;

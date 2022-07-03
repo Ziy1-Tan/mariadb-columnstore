@@ -57,9 +57,17 @@ set(funcexp_LIB_SRCS
     func_insert.cpp
     func_instr.cpp
     func_isnull.cpp
+    func_json_array.cpp
     func_json_depth.cpp
     func_json_equals.cpp
     func_json_exists.cpp
+    func_json_format.cpp
+    func_json_keys.cpp
+    func_json_merge.cpp
+    func_json_merge_patch.cpp
+    func_json_normalize.cpp
+    func_json_quote.cpp
+    func_json_unquote.cpp
     func_json_length.cpp
     func_json_object.cpp
     func_json_type.cpp
