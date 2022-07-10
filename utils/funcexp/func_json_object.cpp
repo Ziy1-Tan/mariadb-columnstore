@@ -14,7 +14,7 @@ using namespace joblist;
 #include "mcs_datatype.h"
 using namespace datatypes;
 
-#include "jsonfunchelper.h"
+#include "jsonfunchelpers.h"
 using namespace funcexp::helpers;
 
 namespace funcexp

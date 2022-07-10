@@ -146,6 +146,7 @@ FuncExp::FuncExp()
   fFuncMap["json_array"] = new Func_json_array();
   fFuncMap["json_depth"] = new Func_json_depth();
   fFuncMap["json_equals"] = new Func_json_equals();
+  fFuncMap["json_keys"] = new Func_json_keys();
   fFuncMap["json_length"] = new Func_json_length();
   fFuncMap["json_normalize"] = new Func_json_normalize();
   fFuncMap["json_object"] = new Func_json_object();

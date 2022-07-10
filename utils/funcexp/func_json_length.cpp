@@ -12,7 +12,7 @@ using namespace rowgroup;
 #include "dataconvert.h"
 using namespace dataconvert;
 
-#include "jsonfunchelper.h"
+#include "jsonfunchelpers.h"
 using namespace funcexp::helpers;
 
 namespace funcexp
@@ -57,9 +57,8 @@ int64_t Func_json_length::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& 
       const string_view tmpPath = fp[1]->data()->getStrVal(row, isNull);
       if (isNull)
         return 0;
-      const char* pathStr = tmpPath.data();
-      if (setupPathNoWildcard(&path.p, fp[1]->data()->resultType().getCharset(),
-                                       (const uchar*)pathStr, (const uchar*)pathStr + tmpPath.size()))
+      if (setupPathNoWildcard(&path.p, fp[1]->data()->resultType().getCharset(), (const uchar*)tmpPath.data(),
+                              (const uchar*)tmpPath.data() + tmpPath.size()))
       {
         isNull = true;
         return 0;

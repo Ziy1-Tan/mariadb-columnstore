@@ -11,7 +11,7 @@ using namespace rowgroup;
 #include "joblisttypes.h"
 using namespace joblist;
 
-#include "jsonfunchelper.h"
+#include "jsonfunchelpers.h"
 using namespace funcexp::helpers;
 
 namespace funcexp
