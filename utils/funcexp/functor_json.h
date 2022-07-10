@@ -121,4 +121,23 @@ class Func_json_equals : public Func_Bool
   bool getBoolVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                   execplan::CalpontSystemCatalog::ColType& type);
 };
+
+/** @brief Func_json_normalize class
+ */
+class Func_json_normalize : public Func_Str
+{
+ public:
+  Func_json_normalize() : Func_Str("json_normalize")
+  {
+  }
+  virtual ~Func_json_normalize()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                        execplan::CalpontSystemCatalog::ColType& type);
+};
 }  // namespace funcexp

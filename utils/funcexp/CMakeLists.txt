@@ -60,6 +60,7 @@ set(funcexp_LIB_SRCS
     func_json_depth.cpp
     func_json_equals.cpp
     func_json_length.cpp
+    func_json_normalize.cpp
     func_json_valid.cpp
     func_last_day.cpp
     func_lcase.cpp
