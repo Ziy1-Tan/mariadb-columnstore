@@ -3,6 +3,7 @@ using namespace std;
 
 #include "functor_json.h"
 #include "functioncolumn.h"
+#include "constantcolumn.h"
 using namespace execplan;
 
 #include "rowgroup.h"
@@ -10,6 +11,9 @@ using namespace rowgroup;
 
 #include "dataconvert.h"
 using namespace dataconvert;
+
+#include "jsonfunchelper.h"
+using namespace funcexp::helpers;
 
 namespace funcexp
 {
@@ -38,15 +42,29 @@ int64_t Func_json_length::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& 
 
   if (fp.size() > 1)
   {
-    const string_view tmpPath = fp[1]->data()->getStrVal(row, isNull);
-    if (isNull)
-      return 0;
-    const char* pathStr = tmpPath.data();
-    if (pathStr && path_setup_nwc(&path.p, fp[1]->data()->resultType().getCharset(), (const uchar*)pathStr,
-                                  (const uchar*)pathStr + tmpPath.size()))
+    if (!path.parsed)
     {
-      isNull = true;
-      return 0;
+      // check if path column is const
+      if (!path.constant)
+      {
+        ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[1]->data());
+        if (constCol != nullptr)
+          path.set_constant_flag(true);
+        else
+          path.set_constant_flag(false);
+      }
+
+      const string_view tmpPath = fp[1]->data()->getStrVal(row, isNull);
+      if (isNull)
+        return 0;
+      const char* pathStr = tmpPath.data();
+      if (setupPathNoWildcard(&path.p, fp[1]->data()->resultType().getCharset(),
+                                       (const uchar*)pathStr, (const uchar*)pathStr + tmpPath.size()))
+      {
+        isNull = true;
+        return 0;
+      }
+      path.parsed = path.constant;
     }
 
     path.cur_step = path.p.steps;

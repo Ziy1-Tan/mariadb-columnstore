@@ -29,6 +29,7 @@ using namespace std;
 #include <boost/algorithm/string.hpp>
 using namespace boost;
 
+#include "functor_json.h"
 #include "bytestream.h"
 #include "functioncolumn.h"
 #include "constantcolumn.h"
@@ -323,6 +324,10 @@ void FunctionColumn::unserialize(messageqcpp::ByteStream& b)
   Func_decode* decode = dynamic_cast<Func_decode*>(fFunctor);
   if (decode)
     fFunctor = fDynamicFunctor = new Func_decode();
+
+  Func_json_length* json_length = dynamic_cast<Func_json_length*>(fFunctor);
+  if (json_length)
+    fFunctor = fDynamicFunctor = new Func_json_length();
 }
 
 bool FunctionColumn::operator==(const FunctionColumn& t) const
