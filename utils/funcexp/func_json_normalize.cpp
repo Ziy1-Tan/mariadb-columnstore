@@ -1,4 +1,4 @@
-#include <string>
+#include <string_view>
 using namespace std;
 
 #include "functor_json.h"
@@ -22,30 +22,23 @@ CalpontSystemCatalog::ColType Func_json_normalize::operationType(FunctionParm& f
 string Func_json_normalize::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                       execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string tmp_js = fp[0]->data()->getStrVal(row, isNull);
+  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
 
   if (isNull)
     return "";
 
-  const char* raw_json = tmp_js.c_str();
+  const DynamicString dynamicString;
 
-  DYNAMIC_STRING normalized_json;
-  if (init_dynamic_string(&normalized_json, NULL, 0, 0))
+  if (dynamicString.empty())
+    return "";
+
+  if (json_normalize(dynamicString.data(), tmpJs.data(), tmpJs.size(),
+                     fp[0]->data()->resultType().getCharset()))
   {
     isNull = true;
-    dynstr_free(&normalized_json);
     return "";
   }
 
-  if (json_normalize(&normalized_json, raw_json, strlen(raw_json), type.getCharset()))
-  {
-    isNull = true;
-    dynstr_free(&normalized_json);
-    return "";
-  }
-
-  string ret = normalized_json.str;
-  dynstr_free(&normalized_json);
-  return ret;
+  return dynamicString.data()->str;
 }
 }  // namespace funcexp

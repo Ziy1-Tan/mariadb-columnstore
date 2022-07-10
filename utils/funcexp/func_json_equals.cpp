@@ -1,7 +1,4 @@
-#include <cstdlib>
-#include <cstring>
-#include <string>
-#include <sstream>
+#include <string_view>
 using namespace std;
 
 #include "functor_json.h"
@@ -28,61 +25,44 @@ bool Func_json_equals::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
 {
   bool result = false;
 
-  DYNAMIC_STRING a_res;
-  if (init_dynamic_string(&a_res, NULL, 0, 0))
+  const DynamicString dynamicStringA;
+  const DynamicString dynamicStringB;
+
+  if (dynamicStringA.empty() || dynamicStringB.empty())
   {
     isNull = true;
-    return true;
-  }
-
-  DYNAMIC_STRING b_res;
-  if (init_dynamic_string(&b_res, NULL, 0, 0))
-  {
-    dynstr_free(&a_res);
-    isNull = true;
-    return true;
-  }
-
-  const std::string a = fp[0]->data()->getStrVal(row, isNull);
-
-  if (isNull)
-  {
-    dynstr_free(&b_res);
-    dynstr_free(&a_res);
     return false;
   }
 
-  const std::string b = fp[0]->data()->getStrVal(row, isNull);
+  const string_view tmpJsA = fp[0]->data()->getStrVal(row, isNull);
 
   if (isNull)
   {
-    dynstr_free(&b_res);
-    dynstr_free(&a_res);
     return false;
   }
 
-  const char* a_js = a.c_str();
-  CHARSET_INFO* a_cs = fp[0]->data()->resultType().getCharset();
-  const char* b_js = b.c_str();
-  CHARSET_INFO* b_cs = fp[1]->data()->resultType().getCharset();
+  const string_view tmpJsB = fp[0]->data()->getStrVal(row, isNull);
 
-  if (json_normalize(&a_res, a_js, strlen(a_js), a_cs))
+  if (isNull)
+  {
+    return false;
+  }
+
+  if (json_normalize(dynamicStringA.data(), tmpJsA.data(), tmpJsA.size(),
+                     fp[0]->data()->resultType().getCharset()))
   {
     isNull = true;
-    dynstr_free(&b_res);
-    dynstr_free(&a_res);
     return result;
   }
 
-  if (json_normalize(&b_res, b_js, strlen(b_js), b_cs))
+  if (json_normalize(dynamicStringB.data(), tmpJsB.data(), tmpJsB.size(),
+                     fp[1]->data()->resultType().getCharset()))
   {
     isNull = true;
-    dynstr_free(&b_res);
-    dynstr_free(&a_res);
     return result;
   }
 
-  result = strcmp(a_res.str, b_res.str) ? false : true;
+  result = strcmp(dynamicStringA.data()->str, dynamicStringB.data()->str) ? false : true;
   return result;
 }
 }  // namespace funcexp

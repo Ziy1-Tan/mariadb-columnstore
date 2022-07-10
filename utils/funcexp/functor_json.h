@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
 
 #define PREFER_MY_CONFIG_H
 #include <mariadb.h>
@@ -12,7 +13,6 @@
 #include "functor_bool.h"
 #include "functor_int.h"
 #include "functor_str.h"
-
 namespace funcexp
 {
 class json_path_with_flags
@@ -27,6 +27,37 @@ class json_path_with_flags
     constant = s_constant;
     parsed = false;
   }
+};
+
+class DynamicString
+{
+ public:
+  DynamicString(const char* initStr = nullptr, size_t initAlloc = 0, size_t allocIncrement = 0)
+  {
+    if (init_dynamic_string(dynmicString, initStr, initAlloc, allocIncrement))
+      isEmpty = false;
+    else
+      isEmpty = true;
+  }
+  ~DynamicString()
+  {
+    if (isEmpty)
+      dynstr_free(dynmicString);
+  }
+
+  DYNAMIC_STRING* data() const
+  {
+    return dynmicString;
+  }
+
+  bool empty() const
+  {
+    return isEmpty;
+  }
+
+ private:
+  DYNAMIC_STRING* dynmicString;
+  bool isEmpty;
 };
 
 /** @brief Func_json_valid class
