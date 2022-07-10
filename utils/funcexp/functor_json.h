@@ -102,4 +102,23 @@ class Func_json_length : public Func_Int
   int64_t getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                     execplan::CalpontSystemCatalog::ColType& type);
 };
+
+/** @brief Func_json_equals class
+ */
+class Func_json_equals : public Func_Bool
+{
+ public:
+  Func_json_equals() : Func_Bool("json_equals")
+  {
+  }
+  ~Func_json_equals()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  bool getBoolVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                  execplan::CalpontSystemCatalog::ColType& type);
+};
 }  // namespace funcexp
