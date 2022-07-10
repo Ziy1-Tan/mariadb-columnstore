@@ -163,4 +163,23 @@ class Func_json_object : public Func_Str
   std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                         execplan::CalpontSystemCatalog::ColType& type);
 };
+
+/** @brief Func_json_array class
+ */
+class Func_json_array : public Func_Str
+{
+ public:
+  Func_json_array() : Func_Str("json_array")
+  {
+  }
+  virtual ~Func_json_array()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                        execplan::CalpontSystemCatalog::ColType& type);
+};
 }  // namespace funcexp

@@ -57,6 +57,7 @@ set(funcexp_LIB_SRCS
     func_insert.cpp
     func_instr.cpp
     func_isnull.cpp
+    func_json_array.cpp
     func_json_depth.cpp
     func_json_equals.cpp
     func_json_length.cpp

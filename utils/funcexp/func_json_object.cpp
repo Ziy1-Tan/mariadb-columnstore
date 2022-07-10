@@ -26,7 +26,7 @@ string getStrEscaped(const char* js, const size_t jsLen, const CHARSET_INFO* cs)
   int strLen = jsLen * 12 * cs->mbmaxlen / cs->mbminlen;
   char* buf = new char[jsLen + strLen + 1024];
   if ((strLen = json_escape(cs, (const uchar*)js, (const uchar*)js + jsLen, cs, (uchar*)buf,
-                            (uchar*)buf + strLen)) > 0)
+                            (uchar*)buf + jsLen + strLen + 1024)) > 0)
   {
     buf[strLen] = '\0';
     string ret = buf;
@@ -90,7 +90,7 @@ namespace funcexp
 CalpontSystemCatalog::ColType Func_json_object::operationType(FunctionParm& fp,
                                                               CalpontSystemCatalog::ColType& resultType)
 {
-  return fp[0]->data()->resultType();
+  return fp.size() > 0 ? fp[0]->data()->resultType() : resultType;
 }
 
 string Func_json_object::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
