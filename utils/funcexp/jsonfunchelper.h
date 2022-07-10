@@ -36,5 +36,8 @@ inline int setupPathNoWildcard(json_path_t* p, CHARSET_INFO* i_cs, const uchar* 
   return 1;
 }
 
+std::string getStrEscaped(const char* js, const CHARSET_INFO* cs);
+std::string getJsonKeyName(rowgroup::Row& row, execplan::SPTP& parm, bool& isNull);
+std::string getJsonValue(rowgroup::Row& row, execplan::SPTP& parm, bool& isNull);
 }  // namespace helpers
 }  // namespace funcexp

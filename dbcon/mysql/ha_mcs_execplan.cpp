@@ -3550,6 +3550,35 @@ ReturnedColumn* buildReturnedColumn(Item* item, gp_walk_info& gwi, bool& nonSupp
   return rc;
 }
 
+// parse the boolean fields to string "true" or "false"
+ReturnedColumn* buildBooleanConstantColumn(Item* item, gp_walk_info& gwi, bool& nonSupport)
+{
+  ConstantColumn* cc = NULL;
+
+  if (gwi.thd)
+  {
+    {
+      if (!item->fixed())
+      {
+        item->fix_fields(gwi.thd, (Item**)&item);
+      }
+    }
+  }
+  cc = new ConstantColumnSInt(colType_MysqlToIDB(item), (int64_t)item->val_int() ? "true" : "false",
+                              (int64_t)item->val_int());
+
+  if (cc)
+    cc->timeZone(gwi.timeZone);
+
+  if (cc && item->name.length)
+    cc->alias(item->name.str);
+
+  if (cc)
+    cc->charsetNumber(item->collation.collation->number);
+
+  return cc;
+}
+
 ArithmeticColumn* buildArithmeticColumn(Item_func* item, gp_walk_info& gwi, bool& nonSupport)
 {
   if (get_fe_conn_info_ptr() == NULL)
@@ -4013,7 +4042,17 @@ ReturnedColumn* buildFunctionColumn(Item_func* ifp, gp_walk_info& gwi, bool& non
           return NULL;
         }
 
-        ReturnedColumn* rc = buildReturnedColumn(ifp->arguments()[i], gwi, nonSupport);
+        ReturnedColumn* rc = NULL;
+
+        // json_array(true, false) should return [true, false] instead of [1, 0]
+        // json_object(1, true) should return {"1": true} instead of {"1": 1}
+        if (((funcName == "json_array" || (funcName == "json_object" && i % 2 == 1)) &&
+             ifp->arguments()[i]->const_item() && ifp->arguments()[i]->type_handler()->is_bool_type()))
+        {
+          rc = buildBooleanConstantColumn(ifp->arguments()[i], gwi, nonSupport);
+        }
+        else
+          rc = buildReturnedColumn(ifp->arguments()[i], gwi, nonSupport);
 
         // MCOL-1510 It must be a temp table field, so find the corresponding column.
         if (!rc && ifp->arguments()[i]->type() == Item::REF_ITEM)
@@ -5774,7 +5813,9 @@ void gp_walk(const Item* item, void* arg)
 
         // bug 3137. If filter constant like 1=0, put it to ptWorkStack
         // MariaDB bug 750. Breaks if compare is an argument to a function.
-        //				if ((int32_t)gwip->rcWorkStack.size() <=  (gwip->rcBookMarkStack.empty() ? 0
+        //				if ((int32_t)gwip->rcWorkStack.size() <=  (gwip->rcBookMarkStack.empty()
+        //?
+        // 0
         //: gwip->rcBookMarkStack.top())
         //				&& isPredicateFunction(ifp, gwip))
         if (isPredicateFunction(ifp, gwip))
