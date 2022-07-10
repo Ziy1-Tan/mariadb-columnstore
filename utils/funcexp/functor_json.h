@@ -27,7 +27,6 @@ class json_path_with_flags
   }
 };
 
-
 /** @brief Func_json_valid class
  */
 class Func_json_valid : public Func_Bool
@@ -223,5 +222,49 @@ class Func_json_exists : public Func_Bool
 
   bool getBoolVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                   execplan::CalpontSystemCatalog::ColType& type);
+};
+
+/** @brief Func_json_quote class
+ */
+class Func_json_quote : public Func_Str
+{
+ protected:
+  json_path_with_flags path;
+
+ public:
+  Func_json_quote() : Func_Str("json_quote")
+  {
+  }
+  virtual ~Func_json_quote()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                        execplan::CalpontSystemCatalog::ColType& type);
+};
+
+/** @brief Func_json_unquote class
+ */
+class Func_json_unquote : public Func_Str
+{
+ protected:
+  json_path_with_flags path;
+
+ public:
+  Func_json_unquote() : Func_Str("json_unquote")
+  {
+  }
+  virtual ~Func_json_unquote()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                        execplan::CalpontSystemCatalog::ColType& type);
 };
 }  // namespace funcexp

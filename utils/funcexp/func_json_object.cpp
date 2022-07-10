@@ -24,14 +24,12 @@ namespace helpers
 string getStrEscaped(const char* js, const size_t jsLen, const CHARSET_INFO* cs)
 {
   int strLen = jsLen * 12 * cs->mbmaxlen / cs->mbminlen;
-  char* buf = new char[jsLen + strLen + 1024];
+  char buf[jsLen + strLen + 1024];
   if ((strLen = json_escape(cs, (const uchar*)js, (const uchar*)js + jsLen, cs, (uchar*)buf,
                             (uchar*)buf + jsLen + strLen + 1024)) > 0)
   {
     buf[strLen] = '\0';
-    string ret = buf;
-    delete[] buf;
-    return ret;
+    return string(buf);
   }
 
   return "";
