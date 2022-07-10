@@ -60,6 +60,7 @@ set(funcexp_LIB_SRCS
     func_json_array.cpp
     func_json_depth.cpp
     func_json_equals.cpp
+    func_json_exists.cpp
     func_json_keys.cpp
     func_json_length.cpp
     func_json_normalize.cpp
