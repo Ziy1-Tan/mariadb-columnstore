@@ -16,7 +16,100 @@ using namespace funcexp::helpers;
 
 namespace
 {
-int doMerge(string& ret, json_engine_t* je1, json_engine_t* je2)
+int copyValuePatch(string& ret, json_engine_t* je)
+{
+  int firstKey = 1;
+
+  if (je->value_type != JSON_VALUE_OBJECT)
+  {
+    const uchar *beg, *end;
+
+    beg = je->value_begin;
+
+    if (!json_value_scalar(je))
+    {
+      if (json_skip_level(je))
+        return 1;
+      end = je->s.c_str;
+    }
+    else
+      end = je->value_end;
+
+    try
+    {
+      ret.append((const char*)beg, (int)(end - beg));
+    }
+    catch (...)
+    {
+      return 1;
+    }
+
+    return 0;
+  }
+  /* JSON_VALUE_OBJECT */
+
+  try
+  {
+    ret.append("{");
+  }
+  catch (...)
+  {
+    return 1;
+  }
+
+  while (json_scan_next(je) == 0 && je->state != JST_OBJ_END)
+  {
+    const uchar* keyStart;
+    /* Loop through the Json_1 keys and compare with the Json_2 keys. */
+    DBUG_ASSERT(je->state == JST_KEY);
+    keyStart = je->s.c_str;
+
+    if (json_read_value(je))
+      return 1;
+
+    if (je->value_type == JSON_VALUE_NULL)
+      continue;
+
+    if (!firstKey)
+    {
+      try
+      {
+        ret.append(", ");
+      }
+      catch (...)
+      {
+        return 3;
+      }
+    }
+    else
+      firstKey = 0;
+
+    try
+    {
+      ret.append("\"");
+      ret.append((const char*)keyStart, (int)(je->value_begin - keyStart));
+      if (copyValuePatch(ret, je))
+        return 1;
+    }
+    catch (...)
+    {
+      return 3;
+    }
+  }
+
+  try
+  {
+    ret.append("}");
+  }
+  catch (...)
+  {
+    return 1;
+  }
+
+  return 0;
+}
+
+int doMergePatch(string& ret, json_engine_t* je1, json_engine_t* je2, bool& isEmpty)
 {
   if (json_read_value(je1) || json_read_value(je2))
     return 1;
@@ -28,7 +121,10 @@ int doMerge(string& ret, json_engine_t* je1, json_engine_t* je2)
 
     int firstKey = 1;
     json_string_t keyName;
+    size_t savLen;
+    bool mrgEmpty;
 
+    isEmpty = false;
     json_string_set_cs(&keyName, je1->s.cs);
 
     try
@@ -50,12 +146,12 @@ int doMerge(string& ret, json_engine_t* je1, json_engine_t* je2)
         keyEnd = je1->s.c_str;
       } while (json_read_keyname_chr(je1) == 0);
 
-      if (unlikely(je1->s.error))
+      if (je1->s.error)
         return 1;
 
-      if (firstKey)
-        firstKey = 0;
-      else
+      savLen = ret.size();
+
+      if (!firstKey)
       {
         try
         {
@@ -71,7 +167,7 @@ int doMerge(string& ret, json_engine_t* je1, json_engine_t* je2)
       try
       {
         ret.append("\"");
-        ret.append((const char*)keyStart, (size_t)(keyEnd - keyStart));
+        ret.append((const char*)keyStart, (int)(keyEnd - keyStart));
         ret.append("\":", 2);
       }
       catch (...)
@@ -92,11 +188,18 @@ int doMerge(string& ret, json_engine_t* je1, json_engine_t* je2)
         }
 
         /* Json_2 has same key as Json_1. Merge them. */
-        if ((ires = doMerge(ret, je1, je2)))
+        if ((ires = doMergePatch(ret, je1, je2, mrgEmpty)))
           return ires;
+
+        if (mrgEmpty)
+          ret = ret.substr(0, savLen);
+        else
+          firstKey = 0;
+
         goto merged_j1;
       }
-      if (unlikely(je2->s.error))
+
+      if (je2->s.error)
         return 2;
 
       keyStart = je1->s.c_str;
@@ -111,6 +214,7 @@ int doMerge(string& ret, json_engine_t* je1, json_engine_t* je2)
       {
         return 3;
       }
+      firstKey = 0;
 
     merged_j1:
       continue;
@@ -131,7 +235,7 @@ int doMerge(string& ret, json_engine_t* je1, json_engine_t* je2)
         keyEnd = je2->s.c_str;
       } while (json_read_keyname_chr(je2) == 0);
 
-      if (unlikely(je2->s.error))
+      if (je2->s.error)
         return 1;
 
       *je1 = savJe1;
@@ -141,7 +245,7 @@ int doMerge(string& ret, json_engine_t* je1, json_engine_t* je2)
         json_string_set_str(&keyName, keyStart, keyEnd);
         if (!json_key_matches(je1, &keyName))
         {
-          if (unlikely(je1->s.error || json_skip_key(je1)))
+          if (je1->s.error || json_skip_key(je1))
             return 2;
           continue;
         }
@@ -150,12 +254,12 @@ int doMerge(string& ret, json_engine_t* je1, json_engine_t* je2)
         goto continue_j2;
       }
 
-      if (unlikely(je1->s.error))
+      if (je1->s.error)
         return 2;
 
-      if (firstKey)
-        firstKey = 0;
-      else
+      savLen = ret.size();
+
+      if (!firstKey)
       {
         try
         {
@@ -167,17 +271,27 @@ int doMerge(string& ret, json_engine_t* je1, json_engine_t* je2)
         }
       }
 
-      if (json_skip_key(je2))
-        return 1;
-
       try
       {
         ret.append("\"");
-        ret.append((const char*)keyStart, (size_t)(je2->s.c_str - keyStart));
+        ret.append((const char*)keyStart, (int)(keyEnd - keyStart));
+        ret.append("\":", 2);
       }
       catch (...)
       {
         return 3;
+      }
+
+      if (json_read_value(je2))
+        return 1;
+
+      if (je2->value_type == JSON_VALUE_NULL)
+        ret = ret.substr(0, savLen);
+      else
+      {
+        if (copyValuePatch(ret, je2))
+          return 1;
+        firstKey = 0;
       }
 
     continue_j2:
@@ -195,101 +309,12 @@ int doMerge(string& ret, json_engine_t* je1, json_engine_t* je2)
   }
   else
   {
-    const uchar *end1, *beg1, *end2, *beg2;
-    int itemSize1 = 1, itemSize2 = 1;
+    if (!json_value_scalar(je1) && json_skip_level(je1))
+      return 1;
 
-    beg1 = je1->value_begin;
-
-    /* Merge as a single array. */
-    if (je1->value_type == JSON_VALUE_ARRAY)
-    {
-      if (json_skip_level_and_count(je1, &itemSize1))
-        return 1;
-
-      end1 = je1->s.c_str - je1->sav_c_len;
-    }
-    else
-    {
-      try
-      {
-        ret.append("[");
-      }
-      catch (...)
-      {
-        return 3;
-      }
-      if (je1->value_type == JSON_VALUE_OBJECT)
-      {
-        if (json_skip_level(je1))
-          return 1;
-        end1 = je1->s.c_str;
-      }
-      else
-        end1 = je1->value_end;
-    }
-
-    try
-    {
-      ret.append((const char*)beg1, end1 - beg1);
-    }
-    catch (...)
-    {
-      return 3;
-    }
-
-    if (json_value_scalar(je2))
-    {
-      beg2 = je2->value_begin;
-      end2 = je2->value_end;
-    }
-    else
-    {
-      if (je2->value_type == JSON_VALUE_OBJECT)
-      {
-        beg2 = je2->value_begin;
-        if (json_skip_level(je2))
-          return 2;
-      }
-      else
-      {
-        beg2 = je2->s.c_str;
-        if (json_skip_level_and_count(je2, &itemSize2))
-          return 2;
-      }
-      end2 = je2->s.c_str;
-    }
-
-    if (itemSize1 && itemSize2)
-    {
-      try
-      {
-        ret.append(", ", 2);
-      }
-      catch (...)
-      {
-        return 3;
-      }
-    }
-    try
-    {
-      ret.append((const char*)beg2, end2 - beg2);
-    }
-    catch (...)
-    {
-      return 3;
-    }
-
-    if (je2->value_type != JSON_VALUE_ARRAY)
-    {
-      try
-      {
-        ret.append("]");
-      }
-      catch (...)
-      {
-        return 3;
-      }
-    }
+    isEmpty = (je2->value_type == JSON_VALUE_NULL);
+    if (!isEmpty && copyValuePatch(ret, je2))
+      return 1;
   }
 
   return 0;
@@ -298,50 +323,84 @@ int doMerge(string& ret, json_engine_t* je1, json_engine_t* je2)
 
 namespace funcexp
 {
-CalpontSystemCatalog::ColType Func_json_merge::operationType(FunctionParm& fp,
-                                                             CalpontSystemCatalog::ColType& resultType)
+CalpontSystemCatalog::ColType Func_json_merge_patch::operationType(FunctionParm& fp,
+                                                                   CalpontSystemCatalog::ColType& resultType)
 {
   return fp[0]->data()->resultType();
 }
 
-string Func_json_merge::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
-                                  execplan::CalpontSystemCatalog::ColType& type)
+string Func_json_merge_patch::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                                        execplan::CalpontSystemCatalog::ColType& type)
 {
+  json_engine_t je1, je2;
+  bool isEmpty, mergeToNull;
   const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
+  mergeToNull = isNull;
   if (isNull)
-    return "";
+  {
+    isNull = false;
+  }
+
+  je1.s.error = je2.s.error = 0;
 
   const char *js1 = tmpJs.data(), *js2 = NULL;
   const CHARSET_INFO* js1Charset = fp[0]->data()->resultType().getCharset();
-  LINT_INIT(js2)
-
-  json_engine_t je1, je2;
 
   string ret;
-
   for (size_t i = 1; i < fp.size(); i++)
   {
     const string_view tmpJs2 = fp[i]->data()->getStrVal(row, isNull);
     if (isNull)
-      return "";
+    {
+      mergeToNull = true;
+      isNull = false;
+      goto cont_point;
+    }
 
     js2 = tmpJs2.data();
 
+    json_scan_start(&je2, fp[i]->data()->resultType().getCharset(), (const uchar*)js2,
+                    (const uchar*)js2 + tmpJs2.size());
+
+    if (mergeToNull)
+    {
+      if (json_read_value(&je2))
+      {
+        isNull = true;
+        return "";
+      }
+      if (je2.value_type == JSON_VALUE_OBJECT)
+      {
+        mergeToNull = true;
+        goto cont_point;
+      }
+      mergeToNull = false;
+      ret.append(js2);
+      goto cont_point;
+    }
+
     json_scan_start(&je1, js1Charset, (const uchar*)js1, (const uchar*)js1 + strlen(js1));
 
-    json_scan_start(&je2, fp[i]->data()->resultType().getCharset(), (const uchar*)js2,
-                    (const uchar*)js2 + strlen(js2));
-
-    if (doMerge(ret, &je1, &je2))
+    if (doMergePatch(ret, &je1, &je2, isEmpty))
     {
       isNull = true;
       return "";
     }
 
+    if (isEmpty)
+      ret.append("null");
+
+  cont_point:
     // js1 save the result for the next loop
     string tmp(ret);
     js1 = tmp.c_str();
     ret.clear();
+  }
+
+  if (mergeToNull)
+  {
+    isNull = true;
+    return "";
   }
 
   json_scan_start(&je1, js1Charset, (const uchar*)js1, (const uchar*)js1 + strlen(js1));

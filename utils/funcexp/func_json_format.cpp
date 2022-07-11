@@ -39,7 +39,7 @@ namespace funcexp
 {
 namespace helpers
 {
-int jsonNice(json_engine_t* je, string& niceJs, Func_json_format::FORMATS mode, int tabSize)
+int doFormat(json_engine_t* je, string& niceJs, Func_json_format::FORMATS mode, int tabSize)
 {
   int depth = 0;
   static const char *comma = ", ", *colon = "\": ";
@@ -182,7 +182,7 @@ string Func_json_format::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
                   (const uchar*)tmpJs.data() + tmpJs.size());
 
   string ret;
-  if (jsonNice(&je, ret, fmt, tabSize))
+  if (doFormat(&je, ret, fmt, tabSize))
   {
     isNull = true;
     return "";

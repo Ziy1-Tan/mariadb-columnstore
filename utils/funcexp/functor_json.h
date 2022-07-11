@@ -327,4 +327,23 @@ class Func_json_merge : public Func_Str
   std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                         execplan::CalpontSystemCatalog::ColType& type);
 };
+
+/** @brief Func_json_merge_patch class
+ */
+class Func_json_merge_patch : public Func_Str
+{
+ public:
+  Func_json_merge_patch() : Func_Str("json_merge_patch")
+  {
+  }
+  virtual ~Func_json_merge_patch()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                        execplan::CalpontSystemCatalog::ColType& type);
+};
 }  // namespace funcexp
