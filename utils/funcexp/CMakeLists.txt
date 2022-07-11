@@ -64,6 +64,7 @@ set(funcexp_LIB_SRCS
     func_json_format.cpp
     func_json_keys.cpp
     func_json_length.cpp
+    func_json_merge.cpp
     func_json_normalize.cpp
     func_json_object.cpp
     func_json_quote.cpp

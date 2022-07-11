@@ -152,6 +152,8 @@ FuncExp::FuncExp()
   fFuncMap["json_keys"] = new Func_json_keys();
   fFuncMap["json_length"] = new Func_json_length();
   fFuncMap["json_loose"] = new Func_json_format(Func_json_format::LOOSE);
+  fFuncMap["json_merge"] = new Func_json_merge();
+  fFuncMap["json_merge_preserve"] = new Func_json_merge();
   fFuncMap["json_normalize"] = new Func_json_normalize();
   fFuncMap["json_object"] = new Func_json_object();
   fFuncMap["json_quote"] = new Func_json_quote();
