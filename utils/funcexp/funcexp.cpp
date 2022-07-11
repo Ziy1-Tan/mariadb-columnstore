@@ -161,6 +161,7 @@ FuncExp::FuncExp()
   fFuncMap["json_type"] = new Func_json_type();
   fFuncMap["json_unquote"] = new Func_json_unquote();
   fFuncMap["json_valid"] = new Func_json_valid();
+  fFuncMap["json_value"] = new Func_json_value();
   fFuncMap["last_day"] = new Func_last_day();
   fFuncMap["lcase"] = new Func_lcase();  // dlh
   fFuncMap["least"] = new Func_least();  // dlh

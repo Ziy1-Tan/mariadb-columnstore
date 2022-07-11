@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #define PREFER_MY_CONFIG_H
 #include <mariadb.h>
 #include <mysql.h>
@@ -27,6 +28,31 @@ class json_path_with_flags
   }
 };
 
+class Json_engine_scan : public json_engine_t
+{
+ public:
+  Json_engine_scan(CHARSET_INFO* cs, const uchar* str, const uchar* end)
+  {
+    json_scan_start(this, cs, str, end);
+  }
+  Json_engine_scan(const std::string& str, CHARSET_INFO* cs)
+   : Json_engine_scan(cs, (const uchar*)str.c_str(), (const uchar*)str.c_str() + str.size())
+  {
+  }
+  bool check_and_get_value_scalar(std::string& res, int* error);
+  bool check_and_get_value_complex(std::string& res, int* error);
+};
+
+class Json_path_extractor : public json_path_with_flags
+{
+ protected:
+  virtual ~Json_path_extractor()
+  {
+  }
+  virtual bool check_and_get_value(Json_engine_scan* je, std::string& ret, int* error) = 0;
+  bool extract(std::string& ret, rowgroup::Row& row, execplan::SPTP& funcParamJs,
+               execplan::SPTP& funcParamPath);
+};
 /** @brief Func_json_valid class
  */
 class Func_json_valid : public Func_Bool
@@ -345,5 +371,32 @@ class Func_json_merge_patch : public Func_Str
 
   std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                         execplan::CalpontSystemCatalog::ColType& type);
+};
+
+/** @brief Func_json_value class
+ */
+class Func_json_value : public Func_Str, public Json_path_extractor
+{
+ protected:
+  json_path_with_flags path;
+
+ public:
+  Func_json_value() : Func_Str("json_value")
+  {
+  }
+  virtual ~Func_json_value()
+  {
+  }
+
+  bool check_and_get_value(Json_engine_scan* je, string& res, int* error) override
+  {
+    return je->check_and_get_value_scalar(res, error);
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(
+      FunctionParm& fp, execplan::CalpontSystemCatalog::ColType& resultType) override;
+
+  std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                        execplan::CalpontSystemCatalog::ColType& type) override;
 };
 }  // namespace funcexp

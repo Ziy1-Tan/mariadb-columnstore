@@ -1,4 +1,4 @@
-#include <string>
+#include <string_view>
 using namespace std;
 
 #include "functor_json.h"
@@ -24,9 +24,9 @@ namespace helpers
 string getStrEscaped(const char* js, const size_t jsLen, const CHARSET_INFO* cs)
 {
   int strLen = jsLen * 12 * cs->mbmaxlen / cs->mbminlen;
-  char buf[jsLen + strLen + 1024];
+  char buf[strLen];
   if ((strLen = json_escape(cs, (const uchar*)js, (const uchar*)js + jsLen, cs, (uchar*)buf,
-                            (uchar*)buf + jsLen + strLen + 1024)) > 0)
+                            (uchar*)buf + strLen)) > 0)
   {
     buf[strLen] = '\0';
     return string(buf);
