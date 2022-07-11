@@ -40,5 +40,11 @@ inline int setupPathNoWildcard(json_path_t* p, CHARSET_INFO* i_cs, const uchar* 
 std::string getStrEscaped(const char* js, const size_t jsLen, const CHARSET_INFO* cs);
 std::string getJsonKeyName(rowgroup::Row& row, execplan::SPTP& parm);
 std::string getJsonValue(rowgroup::Row& row, execplan::SPTP& parm);
+
+static const int TAB_SIZE_LIMIT = 8;
+static const char tab_arr[TAB_SIZE_LIMIT + 1] = "        ";
+
+// format the json using format mode
+int jsonNice(json_engine_t* je, string& niceJs, Func_json_format::FORMATS mode, int tab_size = 4);
 }  // namespace helpers
 }  // namespace funcexp

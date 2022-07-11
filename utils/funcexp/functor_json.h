@@ -267,4 +267,46 @@ class Func_json_unquote : public Func_Str
   std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                         execplan::CalpontSystemCatalog::ColType& type);
 };
+
+/** @brief Func_json_format class
+ */
+class Func_json_format : public Func_Str
+{
+ public:
+  enum FORMATS
+  {
+    NONE,
+    COMPACT,
+    LOOSE,
+    DETAILED
+  };
+
+ protected:
+  FORMATS fmt;
+
+ public:
+  Func_json_format() : Func_Str("json_detailed"), fmt(DETAILED)
+  {
+  }
+  Func_json_format(FORMATS format) : fmt(format)
+  {
+    assert(format != NONE);
+    switch (format)
+    {
+      case DETAILED: Func_Str::Func::funcName("json_detailed"); break;
+      case LOOSE: Func_Str::Func::funcName("json_loose"); break;
+      case COMPACT: Func_Str::Func::funcName("json_compact"); break;
+      default: break;
+    }
+  }
+  virtual ~Func_json_format()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                        execplan::CalpontSystemCatalog::ColType& type);
+};
 }  // namespace funcexp

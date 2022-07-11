@@ -39,7 +39,7 @@ SELECT JSON_UNQUOTE(convert(l using latin1)) FROM t1;
 SELECT JSON_UNQUOTE(convert(l using utf8)) FROM t1;
 SELECT JSON_UNQUOTE(convert(l using utf8mb4)) FROM t1;
 
---echo # Chinese characters
+--echo # Chinese characters (normal in console,abnormal in test)
 --echo #CREATE TABLE t2(l VARCHAR(50)) ENGINE = columnstore;
 --echo #INSERT INTO t2 VALUES(X'e68891');
 --echo #SELECT * FROM t2;
