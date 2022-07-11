@@ -377,9 +377,6 @@ class Func_json_merge_patch : public Func_Str
  */
 class Func_json_value : public Func_Str, public Json_path_extractor
 {
- protected:
-  json_path_with_flags path;
-
  public:
   Func_json_value() : Func_Str("json_value")
   {
@@ -391,6 +388,30 @@ class Func_json_value : public Func_Str, public Json_path_extractor
   bool check_and_get_value(Json_engine_scan* je, string& res, int* error) override
   {
     return je->check_and_get_value_scalar(res, error);
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(
+      FunctionParm& fp, execplan::CalpontSystemCatalog::ColType& resultType) override;
+
+  std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                        execplan::CalpontSystemCatalog::ColType& type) override;
+};
+
+/** @brief Func_json_query class
+ */
+class Func_json_query : public Func_Str, public Json_path_extractor
+{
+ public:
+  Func_json_query() : Func_Str("json_query")
+  {
+  }
+  virtual ~Func_json_query()
+  {
+  }
+
+  bool check_and_get_value(Json_engine_scan* je, string& res, int* error) override
+  {
+    return je->check_and_get_value_complex(res, error);
   }
 
   execplan::CalpontSystemCatalog::ColType operationType(
