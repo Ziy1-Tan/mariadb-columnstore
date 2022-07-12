@@ -420,4 +420,28 @@ class Func_json_query : public Func_Str, public Json_path_extractor
   std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                         execplan::CalpontSystemCatalog::ColType& type) override;
 };
+/** @brief Func_json_contains class
+ */
+class Func_json_contains : public Func_Bool
+{
+ protected:
+  json_path_with_flags path;
+  bool arg2Const; 
+  bool arg2Parsed; // argument 2 is a constant or has been parsed
+  std::string_view arg2Val;
+
+ public:
+  Func_json_contains() : Func_Bool("json_contains")
+  {
+  }
+  virtual ~Func_json_contains()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  bool getBoolVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                  execplan::CalpontSystemCatalog::ColType& type);
+};
 }  // namespace funcexp

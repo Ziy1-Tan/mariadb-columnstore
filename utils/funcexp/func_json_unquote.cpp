@@ -39,14 +39,17 @@ std::string Func_json_unquote::getStrVal(rowgroup::Row& row, FunctionParm& fp, b
   if (unlikely(je.s.error) || je.value_type != JSON_VALUE_STRING)
     return js;
 
-  char buf[je.value_len];
+  char* buf = new char[je.value_len];
   if ((strLen = json_unescape(cs, je.value, je.value + je.value_len, &my_charset_utf8mb3_general_ci,
                               (uchar*)buf, (uchar*)(buf + je.value_len))) >= 0)
   {
     buf[strLen] = '\0';
-    return strLen == 0 ? "" : string(buf);
+    string ret = buf;
+    delete[] buf;
+    return strLen == 0 ? "" : ret;
   }
 
+  delete[] buf;
   return js;
 }
 }  // namespace funcexp

@@ -344,6 +344,10 @@ void FunctionColumn::unserialize(messageqcpp::ByteStream& b)
   Func_json_query* json_query = dynamic_cast<Func_json_query*>(fFunctor);
   if (json_query)
     fFunctor = fDynamicFunctor = new Func_json_query();
+
+  Func_json_contains* json_contains = dynamic_cast<Func_json_contains*>(fFunctor);
+  if (json_contains)
+    fFunctor = fDynamicFunctor = new Func_json_contains();
 }
 
 bool FunctionColumn::operator==(const FunctionColumn& t) const

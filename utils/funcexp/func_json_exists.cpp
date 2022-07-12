@@ -15,7 +15,7 @@ namespace funcexp
 CalpontSystemCatalog::ColType Func_json_exists::operationType(FunctionParm& fp,
                                                               CalpontSystemCatalog::ColType& resultType)
 {
-  return resultType;
+  return fp[0]->data()->resultType();
 }
 
 /**

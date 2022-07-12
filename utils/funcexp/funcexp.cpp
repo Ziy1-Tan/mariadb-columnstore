@@ -144,6 +144,7 @@ FuncExp::FuncExp()
   fFuncMap["isfalse"] = new Func_IsFalse();
   fFuncMap["isnotfalse"] = new Func_IsNotFalse();
   fFuncMap["json_array"] = new Func_json_array();
+  fFuncMap["json_contains"] = new Func_json_contains();
   fFuncMap["json_compact"] = new Func_json_format(Func_json_format::COMPACT);
   fFuncMap["json_depth"] = new Func_json_depth();
   fFuncMap["json_equals"] = new Func_json_equals();

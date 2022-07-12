@@ -43,14 +43,16 @@ bool Json_engine_scan::check_and_get_value_scalar(string& ret, int* error)
 
   int strLen = jsLen * cs->mbmaxlen;
 
-  char buf[jsLen + strLen];
+  char* buf = new char[jsLen + strLen];
   if ((strLen = json_unescape(cs, js, js + jsLen, cs, (uchar*)buf, (uchar*)buf + jsLen + strLen)) > 0)
   {
     buf[strLen] = '\0';
     ret.append(buf);
+    delete[] buf;
     return 0;
   }
 
+  delete[] buf;
   return strLen;
 }
 
