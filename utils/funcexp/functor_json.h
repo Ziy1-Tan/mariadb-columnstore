@@ -486,4 +486,52 @@ class Func_json_array_insert : public Func_Str
   std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                         execplan::CalpontSystemCatalog::ColType& type);
 };
+
+/** @brief Func_json_insert class
+ */
+class Func_json_insert : public Func_Str
+{
+ public:
+  enum MODE
+  {
+    NONE,
+    INSERT,
+    REPLACE,
+    SET
+  };
+
+ protected:
+  MODE mode;
+  vector<json_path_with_flags> paths;
+
+ public:
+  Func_json_insert() : Func_Str("json_insert"), mode(INSERT)
+  {
+  }
+  Func_json_insert(MODE m) : mode(m)
+  {
+    assert(m != NONE);
+    switch (m)
+    {
+      case INSERT: Func_Str::Func::funcName("json_insert"); break;
+      case REPLACE: Func_Str::Func::funcName("json_replace"); break;
+      case SET: Func_Str::Func::funcName("json_set"); break;
+      default: break;
+    }
+  }
+  virtual ~Func_json_insert()
+  {
+  }
+
+  MODE getMode() const
+  {
+    return mode;
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                        execplan::CalpontSystemCatalog::ColType& type);
+};
 }  // namespace funcexp

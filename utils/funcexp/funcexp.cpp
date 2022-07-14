@@ -152,6 +152,7 @@ FuncExp::FuncExp()
   fFuncMap["json_equals"] = new Func_json_equals();
   fFuncMap["json_exists"] = new Func_json_exists();
   fFuncMap["json_format"] = new Func_json_format();
+  fFuncMap["json_insert"] = new Func_json_insert();
   fFuncMap["json_keys"] = new Func_json_keys();
   fFuncMap["json_length"] = new Func_json_length();
   fFuncMap["json_loose"] = new Func_json_format(Func_json_format::LOOSE);
@@ -162,6 +163,8 @@ FuncExp::FuncExp()
   fFuncMap["json_object"] = new Func_json_object();
   fFuncMap["json_query"] = new Func_json_query();
   fFuncMap["json_quote"] = new Func_json_quote();
+  fFuncMap["json_replace"] = new Func_json_insert(Func_json_insert::REPLACE);
+  fFuncMap["json_set"] = new Func_json_insert(Func_json_insert::SET);
   fFuncMap["json_type"] = new Func_json_type();
   fFuncMap["json_unquote"] = new Func_json_unquote();
   fFuncMap["json_valid"] = new Func_json_valid();
