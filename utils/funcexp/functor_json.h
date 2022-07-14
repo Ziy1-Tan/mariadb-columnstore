@@ -465,4 +465,25 @@ class Func_json_array_append : public Func_Str
   std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                         execplan::CalpontSystemCatalog::ColType& type);
 };
+/** @brief Func_json_array_insert class
+ */
+class Func_json_array_insert : public Func_Str
+{
+ protected:
+  vector<json_path_with_flags> paths;
+
+ public:
+  Func_json_array_insert() : Func_Str("json_array_insert")
+  {
+  }
+  virtual ~Func_json_array_insert()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                        execplan::CalpontSystemCatalog::ColType& type);
+};
 }  // namespace funcexp

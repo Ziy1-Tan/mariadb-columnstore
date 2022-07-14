@@ -4047,12 +4047,13 @@ ReturnedColumn* buildFunctionColumn(Item_func* ifp, gp_walk_info& gwi, bool& non
         // json_array(true, false) should return [true, false] instead of [1, 0]
         // json_object(1, true) should return {"1": true} instead of {"1": 1}
         bool isJSArrFunc = (funcName == "json_array");
-        bool isJSArrApdFunc = ((funcName == "json_array_append") && (i != 0) && (i % 2 == 0));
+        bool isJSArrOpFunc = ((funcName == "json_array_append" || funcName == "json_array_insert") &&
+                              (i != 0) && (i % 2 == 0));
         bool isJSObjFunc = ((funcName == "json_object") && (i % 2 == 1));
         bool isJSBoolVal =
             (ifp->arguments()[i]->const_item() && ifp->arguments()[i]->type_handler()->is_bool_type());
 
-        if ((isJSArrFunc || isJSArrApdFunc || isJSObjFunc) && isJSBoolVal)
+        if ((isJSArrFunc || isJSArrOpFunc || isJSObjFunc) && isJSBoolVal)
         {
           rc = buildBooleanConstantColumn(ifp->arguments()[i], gwi, nonSupport);
         }
