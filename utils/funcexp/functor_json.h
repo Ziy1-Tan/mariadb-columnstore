@@ -426,8 +426,8 @@ class Func_json_contains : public Func_Bool
 {
  protected:
   json_path_with_flags path;
-  bool arg2Const; 
-  bool arg2Parsed; // argument 2 is a constant or has been parsed
+  bool arg2Const;
+  bool arg2Parsed;  // argument 2 is a constant or has been parsed
   std::string_view arg2Val;
 
  public:
@@ -443,5 +443,26 @@ class Func_json_contains : public Func_Bool
 
   bool getBoolVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                   execplan::CalpontSystemCatalog::ColType& type);
+};
+/** @brief Func_json_array_append class
+ */
+class Func_json_array_append : public Func_Str
+{
+ protected:
+  vector<json_path_with_flags> paths;
+
+ public:
+  Func_json_array_append() : Func_Str("json_array_append")
+  {
+  }
+  virtual ~Func_json_array_append()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                        execplan::CalpontSystemCatalog::ColType& type);
 };
 }  // namespace funcexp

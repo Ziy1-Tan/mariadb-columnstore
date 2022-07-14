@@ -4046,11 +4046,17 @@ ReturnedColumn* buildFunctionColumn(Item_func* ifp, gp_walk_info& gwi, bool& non
 
         // json_array(true, false) should return [true, false] instead of [1, 0]
         // json_object(1, true) should return {"1": true} instead of {"1": 1}
-        if (((funcName == "json_array" || (funcName == "json_object" && i % 2 == 1)) &&
-             ifp->arguments()[i]->const_item() && ifp->arguments()[i]->type_handler()->is_bool_type()))
+        bool isJSArrFunc = (funcName == "json_array");
+        bool isJSArrApdFunc = ((funcName == "json_array_append") && (i != 0) && (i % 2 == 0));
+        bool isJSObjFunc = ((funcName == "json_object") && (i % 2 == 1));
+        bool isJSBoolVal =
+            (ifp->arguments()[i]->const_item() && ifp->arguments()[i]->type_handler()->is_bool_type());
+
+        if ((isJSArrFunc || isJSArrApdFunc || isJSObjFunc) && isJSBoolVal)
         {
           rc = buildBooleanConstantColumn(ifp->arguments()[i], gwi, nonSupport);
         }
+
         else
           rc = buildReturnedColumn(ifp->arguments()[i], gwi, nonSupport);
 
@@ -5813,7 +5819,8 @@ void gp_walk(const Item* item, void* arg)
 
         // bug 3137. If filter constant like 1=0, put it to ptWorkStack
         // MariaDB bug 750. Breaks if compare is an argument to a function.
-        //				if ((int32_t)gwip->rcWorkStack.size() <=  (gwip->rcBookMarkStack.empty()
+        //				if ((int32_t)gwip->rcWorkStack.size() <=
+        //(gwip->rcBookMarkStack.empty()
         //?
         // 0
         //: gwip->rcBookMarkStack.top())
@@ -6087,12 +6094,13 @@ void gp_walk(const Item* item, void* arg)
           if (operand)
           {
             gwip->rcWorkStack.push(operand);
-            if (i == 0 && gwip->scsp == NULL) // first item is the WHEN LHS
+            if (i == 0 && gwip->scsp == NULL)  // first item is the WHEN LHS
             {
               SimpleColumn* sc = dynamic_cast<SimpleColumn*>(operand);
               if (sc)
               {
-                gwip->scsp.reset(sc->clone());  // We need to clone else sc gets double deleted. This code is rarely executed so the cost is acceptable.
+                gwip->scsp.reset(sc->clone());  // We need to clone else sc gets double deleted. This code is
+                                                // rarely executed so the cost is acceptable.
               }
             }
           }
