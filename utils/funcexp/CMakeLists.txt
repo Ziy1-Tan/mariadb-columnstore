@@ -74,6 +74,7 @@ set(funcexp_LIB_SRCS
     func_json_object.cpp
     func_json_query.cpp
     func_json_quote.cpp
+    func_json_remove.cpp
     func_json_type.cpp
     func_json_unquote.cpp
     func_json_valid.cpp

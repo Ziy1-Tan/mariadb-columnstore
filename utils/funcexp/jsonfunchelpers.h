@@ -48,5 +48,6 @@ static const char tab_arr[TAB_SIZE_LIMIT + 1] = "        ";
 int doFormat(json_engine_t* je, string& niceJs, Func_json_format::FORMATS mode, int tab_size = 4);
 
 #define SHOULD_END_WITH_ARRAY 2
+#define TRIVIAL_PATH_NOT_ALLOWED 3
 }  // namespace helpers
 }  // namespace funcexp

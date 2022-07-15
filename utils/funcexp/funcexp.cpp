@@ -163,6 +163,7 @@ FuncExp::FuncExp()
   fFuncMap["json_object"] = new Func_json_object();
   fFuncMap["json_query"] = new Func_json_query();
   fFuncMap["json_quote"] = new Func_json_quote();
+  fFuncMap["json_remove"] = new Func_json_remove();
   fFuncMap["json_replace"] = new Func_json_insert(Func_json_insert::REPLACE);
   fFuncMap["json_set"] = new Func_json_insert(Func_json_insert::SET);
   fFuncMap["json_type"] = new Func_json_type();

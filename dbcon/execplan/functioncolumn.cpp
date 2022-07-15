@@ -360,6 +360,10 @@ void FunctionColumn::unserialize(messageqcpp::ByteStream& b)
   Func_json_insert* json_insert = dynamic_cast<Func_json_insert*>(fFunctor);
   if (json_insert)
     fFunctor = fDynamicFunctor = new Func_json_insert(json_insert->getMode());
+
+  Func_json_remove* json_remove = dynamic_cast<Func_json_remove*>(fFunctor);
+  if (json_remove)
+    fFunctor = fDynamicFunctor = new Func_json_remove();
 }
 
 bool FunctionColumn::operator==(const FunctionColumn& t) const
