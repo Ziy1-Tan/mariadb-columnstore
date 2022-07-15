@@ -147,6 +147,7 @@ FuncExp::FuncExp()
   fFuncMap["json_array_append"] = new Func_json_array_append();
   fFuncMap["json_array_insert"] = new Func_json_array_insert();
   fFuncMap["json_contains"] = new Func_json_contains();
+  fFuncMap["json_contains_path"] = new Func_json_contains_path();
   fFuncMap["json_compact"] = new Func_json_format(Func_json_format::COMPACT);
   fFuncMap["json_depth"] = new Func_json_depth();
   fFuncMap["json_equals"] = new Func_json_equals();

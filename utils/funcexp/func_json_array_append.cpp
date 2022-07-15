@@ -1,6 +1,3 @@
-#include <string_view>
-using namespace std;
-
 #include "functor_json.h"
 #include "functioncolumn.h"
 #include "constantcolumn.h"
@@ -12,7 +9,7 @@ using namespace rowgroup;
 #include "joblisttypes.h"
 using namespace joblist;
 
-#include "jsonfunchelpers.h"
+#include "jsonhelpers.h"
 using namespace funcexp::helpers;
 
 namespace funcexp
@@ -26,7 +23,7 @@ CalpontSystemCatalog::ColType Func_json_array_append::operationType(FunctionParm
 string Func_json_array_append::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                          execplan::CalpontSystemCatalog::ColType& type)
 {
-  string tmpJs = fp[0]->data()->getStrVal(row, isNull);
+  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
@@ -49,11 +46,12 @@ string Func_json_array_append::getStrVal(rowgroup::Row& row, FunctionParm& fp, b
     }
   }
 
+  string rawJs{tmpJs};
   for (size_t i = 1, j = 0; i < fp.size(); i += 2, j++)
   {
-    const char* js = tmpJs.data();
-    const size_t jsLen = tmpJs.size();
-    uint arrayCounters[JSON_DEPTH_LIMIT];
+    const char* js = rawJs.data();
+    const size_t jsLen = rawJs.size();
+    int arrayCounters[JSON_DEPTH_LIMIT];
     json_path_with_flags& currPath = paths[j];
     if (!currPath.parsed)
     {
@@ -134,11 +132,12 @@ string Func_json_array_append::getStrVal(rowgroup::Row& row, FunctionParm& fp, b
       ret.append((const char*)jsEg.s.c_str, js + jsLen - (const char*)jsEg.s.c_str);
     }
 
-    tmpJs.swap(ret);
+    // rawJs save the json string for next loop
+    rawJs.swap(ret);
     ret.clear();
   }
 
-  json_scan_start(&jsEg, cs, (const uchar*)tmpJs.data(), (const uchar*)tmpJs.data() + tmpJs.size());
+  json_scan_start(&jsEg, cs, (const uchar*)rawJs.data(), (const uchar*)rawJs.data() + rawJs.size());
 
   ret.clear();
   if (doFormat(&jsEg, ret, Func_json_format::LOOSE))

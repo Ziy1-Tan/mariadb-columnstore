@@ -17,6 +17,9 @@ namespace funcexp
 class json_path_with_flags
 {
  public:
+  json_path_with_flags() : constant(false), parsed(false), cur_step{nullptr}
+  {
+  }
   json_path_t p;
   bool constant;
   bool parsed;
@@ -431,7 +434,7 @@ class Func_json_contains : public Func_Bool
   std::string_view arg2Val;
 
  public:
-  Func_json_contains() : Func_Bool("json_contains")
+  Func_json_contains() : Func_Bool("json_contains"), arg2Const(false), arg2Parsed(false), arg2Val("")
   {
   }
   virtual ~Func_json_contains()
@@ -449,7 +452,7 @@ class Func_json_contains : public Func_Bool
 class Func_json_array_append : public Func_Str
 {
  protected:
-  vector<json_path_with_flags> paths;
+  std::vector<json_path_with_flags> paths;
 
  public:
   Func_json_array_append() : Func_Str("json_array_append")
@@ -470,7 +473,7 @@ class Func_json_array_append : public Func_Str
 class Func_json_array_insert : public Func_Str
 {
  protected:
-  vector<json_path_with_flags> paths;
+  std::vector<json_path_with_flags> paths;
 
  public:
   Func_json_array_insert() : Func_Str("json_array_insert")
@@ -502,7 +505,7 @@ class Func_json_insert : public Func_Str
 
  protected:
   MODE mode;
-  vector<json_path_with_flags> paths;
+  std::vector<json_path_with_flags> paths;
 
  public:
   Func_json_insert() : Func_Str("json_insert"), mode(INSERT)
@@ -539,7 +542,7 @@ class Func_json_insert : public Func_Str
 class Func_json_remove : public Func_Str
 {
  protected:
-  vector<json_path_with_flags> paths;
+  std::vector<json_path_with_flags> paths;
 
  public:
   Func_json_remove() : Func_Str("json_remove")
@@ -554,5 +557,32 @@ class Func_json_remove : public Func_Str
 
   std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                         execplan::CalpontSystemCatalog::ColType& type);
+};
+
+/** @brief Func_json_contains_path class
+ */
+class Func_json_contains_path : public Func_Bool
+{
+ protected:
+  std::vector<json_path_with_flags> paths;
+  std::vector<bool> hasFound;
+  bool isModeOne;
+  bool isModeConst;
+  bool isModeParsed;
+
+ public:
+  Func_json_contains_path()
+   : Func_Bool("json_contains_path"), isModeOne(false), isModeConst(false), isModeParsed(false)
+  {
+  }
+  virtual ~Func_json_contains_path()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  bool getBoolVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                  execplan::CalpontSystemCatalog::ColType& type);
 };
 }  // namespace funcexp

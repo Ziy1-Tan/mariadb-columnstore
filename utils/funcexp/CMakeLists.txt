@@ -61,6 +61,7 @@ set(funcexp_LIB_SRCS
     func_json_array_append.cpp
     func_json_array_insert.cpp
     func_json_contains.cpp
+    func_json_contains_path.cpp
     func_json_depth.cpp
     func_json_equals.cpp
     func_json_exists.cpp
@@ -139,6 +140,7 @@ set(funcexp_LIB_SRCS
     func_weekday.cpp
     func_year.cpp
     func_yearweek.cpp
+    jsonhelpers.cpp
     sql_crypt.cpp)
 
 add_library(funcexp SHARED ${funcexp_LIB_SRCS})

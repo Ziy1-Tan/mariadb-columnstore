@@ -1,6 +1,3 @@
-#include <string_view>
-using namespace std;
-
 #include "functor_json.h"
 #include "functioncolumn.h"
 #include "constantcolumn.h"
@@ -12,7 +9,7 @@ using namespace rowgroup;
 #include "dataconvert.h"
 using namespace dataconvert;
 
-#include "jsonfunchelpers.h"
+#include "jsonhelpers.h"
 using namespace funcexp::helpers;
 
 namespace funcexp
@@ -26,7 +23,7 @@ CalpontSystemCatalog::ColType Func_json_remove::operationType(FunctionParm& fp,
 string Func_json_remove::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                    execplan::CalpontSystemCatalog::ColType& type)
 {
-  string tmpJs = fp[0]->data()->getStrVal(row, isNull);
+  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
@@ -48,16 +45,17 @@ string Func_json_remove::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
   }
 
   string ret;
+  string rawJs{tmpJs};
   for (size_t i = 1, j = 0; i < fp.size(); i++, j++)
   {
-    const char* js = tmpJs.data();
-    const size_t jsLen = tmpJs.size();
+    const char* js = rawJs.data();
+    const size_t jsLen = rawJs.size();
 
-    uint arrayCounters[JSON_DEPTH_LIMIT];
+    int arrayCounters[JSON_DEPTH_LIMIT];
     json_path_with_flags& currPath = paths[j];
     const json_path_step_t* lastStep;
-    const char *remStart, *remEnd;
-    uint itemSize = 0;
+    const char *remStart = nullptr, *remEnd = nullptr;
+    int itemSize = 0;
 
     if (!currPath.parsed)
     {
@@ -196,11 +194,11 @@ string Func_json_remove::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
       ret.append(",", 1);
     ret.append(remEnd, js + jsLen - remEnd);
 
-    tmpJs.swap(ret);
+    rawJs.swap(ret);
     ret.clear();
   }
 
-  json_scan_start(&jsEg, cs, (const uchar*)tmpJs.data(), (const uchar*)tmpJs.data() + tmpJs.size());
+  json_scan_start(&jsEg, cs, (const uchar*)rawJs.data(), (const uchar*)rawJs.data() + rawJs.size());
 
   ret.clear();
   if (doFormat(&jsEg, ret, Func_json_format::LOOSE))

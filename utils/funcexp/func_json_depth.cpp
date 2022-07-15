@@ -27,7 +27,7 @@ int64_t Func_json_depth::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& i
     return 0;
 
   json_engine_t je;
-  uint depth = 0, currDepth = 0;
+  int depth = 0, currDepth = 0;
   bool incDepth = true;
 
   const char* js = tmpJs.data();

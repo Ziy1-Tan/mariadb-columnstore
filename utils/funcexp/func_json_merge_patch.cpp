@@ -11,7 +11,7 @@ using namespace rowgroup;
 #include "joblisttypes.h"
 using namespace joblist;
 
-#include "jsonfunchelpers.h"
+#include "jsonhelpers.h"
 using namespace funcexp::helpers;
 
 namespace
@@ -342,10 +342,11 @@ string Func_json_merge_patch::getStrVal(rowgroup::Row& row, FunctionParm& fp, bo
   }
 
   je1.s.error = je2.s.error = 0;
+  const char *js1 = 0, *js2 = 0;
 
-  const char *js1 = tmpJs.data(), *js2 = NULL;
   const CHARSET_INFO* js1Charset = fp[0]->data()->resultType().getCharset();
 
+  string rawJs{tmpJs};
   string ret;
   for (size_t i = 1; i < fp.size(); i++)
   {
@@ -357,6 +358,7 @@ string Func_json_merge_patch::getStrVal(rowgroup::Row& row, FunctionParm& fp, bo
       goto cont_point;
     }
 
+    js1 = rawJs.data();
     js2 = tmpJs2.data();
 
     json_scan_start(&je2, fp[i]->data()->resultType().getCharset(), (const uchar*)js2,
@@ -379,7 +381,7 @@ string Func_json_merge_patch::getStrVal(rowgroup::Row& row, FunctionParm& fp, bo
       goto cont_point;
     }
 
-    json_scan_start(&je1, js1Charset, (const uchar*)js1, (const uchar*)js1 + strlen(js1));
+    json_scan_start(&je1, js1Charset, (const uchar*)js1, (const uchar*)js1 + rawJs.size());
 
     if (doMergePatch(ret, &je1, &je2, isEmpty))
     {
@@ -391,9 +393,8 @@ string Func_json_merge_patch::getStrVal(rowgroup::Row& row, FunctionParm& fp, bo
       ret.append("null");
 
   cont_point:
-    // js1 save the result for the next loop
-    string tmp(ret);
-    js1 = tmp.c_str();
+    // rawJs save the merge result for next loop
+    rawJs.swap(ret);
     ret.clear();
   }
 
@@ -403,7 +404,7 @@ string Func_json_merge_patch::getStrVal(rowgroup::Row& row, FunctionParm& fp, bo
     return "";
   }
 
-  json_scan_start(&je1, js1Charset, (const uchar*)js1, (const uchar*)js1 + strlen(js1));
+  json_scan_start(&je1, js1Charset, (const uchar*)rawJs.data(), (const uchar*)rawJs.data() + rawJs.size());
 
   ret.clear();
   if (doFormat(&je1, ret, Func_json_format::LOOSE))

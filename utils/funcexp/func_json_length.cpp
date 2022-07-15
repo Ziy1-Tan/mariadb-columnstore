@@ -12,7 +12,7 @@ using namespace rowgroup;
 #include "dataconvert.h"
 using namespace dataconvert;
 
-#include "jsonfunchelpers.h"
+#include "jsonhelpers.h"
 using namespace funcexp::helpers;
 
 namespace funcexp
@@ -31,8 +31,8 @@ int64_t Func_json_length::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& 
     return 0;
 
   json_engine_t je;
-  uint length = 0;
-  uint arrayCounters[JSON_DEPTH_LIMIT];
+  int length = 0;
+  int arrayCounters[JSON_DEPTH_LIMIT];
   int err;
 
   const char* js = tmpJs.data();
@@ -44,25 +44,24 @@ int64_t Func_json_length::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& 
   {
     if (!path.parsed)
     {
-      // check if path column is const
+      // check if path column is const and cache it
       if (!path.constant)
       {
         ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[1]->data());
-        if (constCol != nullptr)
-          path.set_constant_flag(true);
-        else
-          path.set_constant_flag(false);
+        path.set_constant_flag((constCol != nullptr));
       }
 
       const string_view tmpPath = fp[1]->data()->getStrVal(row, isNull);
       if (isNull)
         return 0;
+
       if (setupPathNoWildcard(&path.p, fp[1]->data()->resultType().getCharset(), (const uchar*)tmpPath.data(),
                               (const uchar*)tmpPath.data() + tmpPath.size()))
       {
         isNull = true;
         return 0;
       }
+      
       path.parsed = path.constant;
     }
 

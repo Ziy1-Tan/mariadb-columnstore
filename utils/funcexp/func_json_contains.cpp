@@ -10,7 +10,7 @@ using namespace rowgroup;
 
 #include "dataconvert.h"
 
-#include "jsonfunchelpers.h"
+#include "jsonhelpers.h"
 using namespace funcexp::helpers;
 
 namespace
@@ -192,10 +192,7 @@ bool Func_json_contains::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
     if (!arg2Const)
     {
       ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[1]->data());
-      if (constCol != nullptr)
-        arg2Const = true;
-      else
-        arg2Const = false;
+      arg2Const = (constCol != nullptr);
     }
     arg2Val = tmpVal;
     arg2Parsed = arg2Const;
@@ -207,17 +204,14 @@ bool Func_json_contains::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
 
   if (fp.size() > 2)
   {
-    uint arrayCounters[JSON_DEPTH_LIMIT];
+    int arrayCounters[JSON_DEPTH_LIMIT];
     if (!path.parsed)
     {
       // check if path column is const
       if (!path.constant)
       {
         ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[2]->data());
-        if (constCol != nullptr)
-          path.set_constant_flag(true);
-        else
-          path.set_constant_flag(false);
+        path.set_constant_flag((constCol != nullptr));
       }
 
       const string_view tmpPath = fp[2]->data()->getStrVal(row, isNull);

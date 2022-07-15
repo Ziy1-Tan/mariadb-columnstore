@@ -325,6 +325,7 @@ void FunctionColumn::unserialize(messageqcpp::ByteStream& b)
   if (decode)
     fFunctor = fDynamicFunctor = new Func_decode();
 
+  // Special treatment for json function contains the variable path. reset the variable path
   Func_json_length* json_length = dynamic_cast<Func_json_length*>(fFunctor);
   if (json_length)
     fFunctor = fDynamicFunctor = new Func_json_length();
@@ -364,6 +365,10 @@ void FunctionColumn::unserialize(messageqcpp::ByteStream& b)
   Func_json_remove* json_remove = dynamic_cast<Func_json_remove*>(fFunctor);
   if (json_remove)
     fFunctor = fDynamicFunctor = new Func_json_remove();
+
+  Func_json_contains_path* json_contains_path = dynamic_cast<Func_json_contains_path*>(fFunctor);
+  if (json_contains_path)
+    fFunctor = fDynamicFunctor = new Func_json_contains_path();
 }
 
 bool FunctionColumn::operator==(const FunctionColumn& t) const

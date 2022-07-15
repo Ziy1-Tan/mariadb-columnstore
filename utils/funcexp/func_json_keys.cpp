@@ -13,7 +13,7 @@ using namespace rowgroup;
 #include "dataconvert.h"
 using namespace dataconvert;
 
-#include "jsonfunchelpers.h"
+#include "jsonhelpers.h"
 using namespace funcexp::helpers;
 
 namespace
@@ -64,7 +64,7 @@ string Func_json_keys::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isN
 
   json_engine_t je;
   uint keySize = 0;
-  uint arrayCounters[JSON_DEPTH_LIMIT];
+  int arrayCounters[JSON_DEPTH_LIMIT];
 
   json_scan_start(&je, fp[0]->data()->resultType().getCharset(), (const uchar*)tmpJs.data(),
                   (const uchar*)tmpJs.data() + tmpJs.size());
@@ -77,10 +77,7 @@ string Func_json_keys::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isN
       if (!path.constant)
       {
         ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[1]->data());
-        if (constCol != nullptr)
-          path.set_constant_flag(true);
-        else
-          path.set_constant_flag(false);
+        path.set_constant_flag((constCol != nullptr));
       }
 
       const string_view tmpPath = fp[1]->data()->getStrVal(row, isNull);

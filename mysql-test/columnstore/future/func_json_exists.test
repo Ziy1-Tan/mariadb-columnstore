@@ -1,27 +1,42 @@
 #-- source ../include/have_columnstore.inc
 --disable_warnings
-
 DROP DATABASE IF EXISTS json_exists_db;
---enable_warnings
 
-CREATE DATABASE json_exists_db; 
+--enable_warnings
+CREATE DATABASE json_exists_db;
+
 USE json_exists_db;
+
 --echo # ----------------------------------------------------------------------
 --echo # Test of JSON_EXISTS function.
 --echo # ----------------------------------------------------------------------
 --echo # Test case 0
-CREATE TABLE t1(l LONGTEXT) ENGINE = columnstore;
-INSERT INTO t1 VALUES('{"key1":"xxxx", "key2":[1, 2, 3]}');
-INSERT INTO t1 VALUES('{"key1":"xxxx", "key2":[1, 2, 3],"key3":"value3"}');
+CREATE TABLE t1(j TEXT, p TEXT) ENGINE = columnstore;
 
-SELECT JSON_EXISTS(l, "$.key1") FROM t1;
-SELECT JSON_EXISTS(l, "$.key2") FROM t1;
-SELECT JSON_EXISTS(l, "$.key2[1]") FROM t1;
-SELECT JSON_EXISTS(l, "$.key2[10]") FROM t1;
-SELECT JSON_EXISTS(l, "$.key3") FROM t1;
+SET
+      @json = '{"key1":"xxxx", "key2":[1, 2, 3]}';
+
+INSERT INTO
+      t1
+VALUES
+      (@json, '$.key1'),
+      (@json, '$.key1[0]'),
+      (@json, '$.key2'),
+      (@json, '$.key2[1]'),
+      (@json, '$.key2[10]');
+
+SELECT
+      j,
+      p,
+      JSON_EXISTS(j, p) AS result
+FROM
+      t1;
+
 --echo # Test case 1
-TRUNCATE t1;
-SET @json='{
+CREATE TABLE t2(j TEXT, p TEXT) ENGINE = columnstore;
+
+SET
+      @json = '{
             "A": [0,
                   [1, 2, 3],
                   [4, 5, 6],
@@ -35,13 +50,25 @@ SET @json='{
             "B": {"C": 1},
             "D": 2
            }';
-INSERT INTO t1 VALUES(@json);
 
-SELECT JSON_EXISTS(l, '$.A[-2][-1]') FROM t1;
-SELECT JSON_EXISTS(l, '$.A[last-1][last]') FROM t1;
--- echo # Test case 2
-TRUNCATE t1;
-SET @json= '[
+INSERT INTO
+      t2
+VALUES
+      (@json, '$.A[-2][-1]'),
+      (@json, '$.A[last-1][last]');
+
+SELECT
+      j,
+      p,
+      JSON_EXISTS(j, p) AS result
+FROM
+      t2;
+
+--echo # Test case 2
+CREATE TABLE t3(j TEXT, p TEXT) ENGINE = columnstore;
+
+SET
+      @json = '[
              [1, {"key1": "value1"}, 3],
              [false, 5, 6],
              [7, 8, [9, {"key2": 2}, 11]],
@@ -49,12 +76,24 @@ SET @json= '[
              [19, 20],
              21, 22
             ]';
-INSERT INTO t1 VALUES(@json);
 
-SELECT JSON_EXISTS(l, '$[3][3][-2 to last]') FROM t1;
+INSERT INTO
+      t3
+VALUES
+      (@json, '$[3][3][-2 to last]');
+
+SELECT
+      j,
+      p,
+      JSON_EXISTS(j, p) AS result
+FROM
+      t3;
+
 -- echo # Test case 3
-TRUNCATE t1;
-SET @json= '[
+CREATE TABLE t4(j TEXT, p TEXT) ENGINE = columnstore;
+
+SET
+      @json = '[
              [1, {"key1": "value1"}, 3],
              [false, 5, 6],
              [7, 8, [9, {"key2": 2}, 11]],
@@ -62,11 +101,27 @@ SET @json= '[
              [19, 20],
              21, 22
             ]';
-INSERT INTO t1 VALUES(@json);
 
-SELECT JSON_EXISTS(l, '$[2][2][1 to 2]') from t1;
-SELECT JSON_EXISTS(l, '$[2][2][4 to 6]') from t1;
-SELECT JSON_EXISTS(l, '$[2][2][1 to 4]') from t1;
+INSERT INTO
+      t4
+VALUES
+      (@json, '$[2][2][1 to 2]'),
+      (@json, '$[2][2][4 to 6]'),
+      (@json, '$[2][2][1 to 4]');
+
+SELECT
+      j,
+      p,
+      JSON_EXISTS(j, p) AS result
+FROM
+      t4;
+
+DROP TABLE t4;
+
+DROP TABLE t3;
+
+DROP TABLE t2;
 
 DROP TABLE t1;
+
 DROP DATABASE json_exists_db;

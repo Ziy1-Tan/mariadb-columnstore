@@ -73,18 +73,16 @@ bool Json_path_extractor::extract(std::string& ret, rowgroup::Row& row, execplan
   }
 
   int error = 0;
-  uint arrayCounters[JSON_DEPTH_LIMIT];
+  int arrayCounters[JSON_DEPTH_LIMIT];
 
   if (!parsed)
   {
     if (!constant)
     {
       ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(funcParamPath->data());
-      if (constCol != nullptr)
-        set_constant_flag(true);
-      else
-        set_constant_flag(false);
+      set_constant_flag((constCol != nullptr));
     }
+
     if (isPathNull)
       return true;
 

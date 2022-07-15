@@ -29,7 +29,7 @@ bool Func_json_exists::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
     return false;
 
   json_engine_t je;
-  uint arrayCounters[JSON_DEPTH_LIMIT];
+  int arrayCounters[JSON_DEPTH_LIMIT];
 
   if (!path.parsed)
   {
@@ -37,10 +37,7 @@ bool Func_json_exists::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
     if (!path.constant)
     {
       ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[1]->data());
-      if (constCol != nullptr)
-        path.set_constant_flag(true);
-      else
-        path.set_constant_flag(false);
+      path.set_constant_flag((constCol != nullptr));
     }
 
     const string_view tmpPath = fp[1]->data()->getStrVal(row, isNull);
