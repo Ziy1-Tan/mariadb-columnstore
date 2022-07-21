@@ -1,4 +1,4 @@
-#-- source ../include/have_columnstore.inc
+--source ../include/have_columnstore.inc
 --disable_warnings
 DROP DATABASE IF EXISTS json_contains_db;
 

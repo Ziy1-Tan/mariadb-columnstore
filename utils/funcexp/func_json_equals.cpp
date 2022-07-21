@@ -27,30 +27,28 @@ bool Func_json_equals::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
   // auto release the DYNAMIC_STRING
   using DynamicString = unique_ptr<DYNAMIC_STRING, decltype(&dynstr_free)>;
 
-  DYNAMIC_STRING tmpStringA;
-  if (init_dynamic_string(&tmpStringA, NULL, 0, 0))
+  DynamicString dynStr1{new DYNAMIC_STRING(), dynstr_free};
+  if (init_dynamic_string(&*dynStr1, NULL, 0, 0))
   {
     isNull = true;
     return true;
   }
-  DynamicString dynamicStringA{&tmpStringA, dynstr_free};
 
-  DYNAMIC_STRING tmpStringB;
-  if (init_dynamic_string(&tmpStringB, NULL, 0, 0))
+  DynamicString dynStr2{new DYNAMIC_STRING(), dynstr_free};
+  if (init_dynamic_string(&*dynStr2, NULL, 0, 0))
   {
     isNull = true;
     return true;
   }
-  DynamicString dynamicStringB{&tmpStringB, dynstr_free};
 
-  const string_view tmpJsA = fp[0]->data()->getStrVal(row, isNull);
+  const string_view jsExp1 = fp[0]->data()->getStrVal(row, isNull);
 
   if (isNull)
   {
     return false;
   }
 
-  const string_view tmpJsB = fp[1]->data()->getStrVal(row, isNull);
+  const string_view jsExp2 = fp[1]->data()->getStrVal(row, isNull);
 
   if (isNull)
   {
@@ -58,21 +56,19 @@ bool Func_json_equals::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
   }
 
   bool result = false;
-  if (json_normalize(&*dynamicStringA, tmpJsA.data(), tmpJsA.size(),
-                     fp[0]->data()->resultType().getCharset()))
+  if (json_normalize(&*dynStr1, jsExp1.data(), jsExp1.size(), fp[0]->data()->resultType().getCharset()))
   {
     isNull = true;
     return result;
   }
 
-  if (json_normalize(&*dynamicStringB, tmpJsB.data(), tmpJsB.size(),
-                     fp[1]->data()->resultType().getCharset()))
+  if (json_normalize(&*dynStr2, jsExp2.data(), jsExp2.size(), fp[1]->data()->resultType().getCharset()))
   {
     isNull = true;
     return result;
   }
 
-  result = strcmp(dynamicStringA->str, dynamicStringB->str) ? false : true;
+  result = strcmp(dynStr1->str, dynStr2->str) ? false : true;
   return result;
 }
 }  // namespace funcexp

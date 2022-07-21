@@ -23,7 +23,7 @@ CalpontSystemCatalog::ColType Func_json_remove::operationType(FunctionParm& fp,
 string Func_json_remove::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                    execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
+  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
@@ -37,47 +37,37 @@ string Func_json_remove::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
   {
     for (size_t i = 1; i < fp.size(); i++)
     {
-      json_path_with_flags path;
-      ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[i]->data());
-      path.set_constant_flag((constCol != nullptr));
+      JsonPath path;
+      markConstFlag(path, fp[i]);
       paths.push_back(path);
     }
   }
 
   string ret;
-  string rawJs{tmpJs};
+  string rawJS{jsExp};
   for (size_t i = 1, j = 0; i < fp.size(); i++, j++)
   {
-    const char* js = rawJs.data();
-    const size_t jsLen = rawJs.size();
+    const char* js = rawJS.data();
+    const size_t jsLen = rawJS.size();
 
-    int arrayCounters[JSON_DEPTH_LIMIT];
-    json_path_with_flags& currPath = paths[j];
+    JsonPath& currPath = paths[j];
     const json_path_step_t* lastStep;
     const char *remStart = nullptr, *remEnd = nullptr;
-    int itemSize = 0;
+    IntType itemSize = 0;
 
     if (!currPath.parsed)
     {
-      const string_view tmpPath = fp[i]->data()->getStrVal(row, isNull);
-      if (isNull)
-        return "";
-
-      if (setupPathNoWildcard(&currPath.p, fp[i]->data()->resultType().getCharset(),
-                              (const uchar*)tmpPath.data(), (const uchar*)tmpPath.data() + tmpPath.size()))
-      {
-        isNull = true;
-        return "";
-      }
+      const string_view pathExp = fp[i]->data()->getStrVal(row, isNull);
+      const char* rawPath = pathExp.data();
+      if (isNull || pathSetupNwc(&currPath.p, fp[i]->data()->resultType().getCharset(), (const uchar*)rawPath,
+                                 (const uchar*)rawPath + pathExp.size()))
+        goto error;
 
       currPath.p.last_step--;
       if (currPath.p.last_step < currPath.p.steps)
       {
         currPath.p.s.error = TRIVIAL_PATH_NOT_ALLOWED;
-        {
-          isNull = true;
-          return "";
-        }
+        goto error;
       }
       currPath.parsed = currPath.constant;
     }
@@ -87,22 +77,16 @@ string Func_json_remove::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
     if (currPath.p.last_step < currPath.p.steps)
       goto v_found;
 
-    currPath.cur_step = currPath.p.steps;
+    currPath.currStep = currPath.p.steps;
 
-    if (json_find_path(&jsEg, &currPath.p, &currPath.cur_step, arrayCounters))
+    if (jsonFindPath(&jsEg, &currPath.p, &currPath.currStep))
     {
       if (jsEg.s.error)
-      {
-        isNull = true;
-        return "";
-      }
+        goto error;
     }
 
     if (json_read_value(&jsEg))
-    {
-      isNull = true;
-      return "";
-    }
+      goto error;
 
     lastStep = currPath.p.last_step + 1;
     if (lastStep->type & JSON_PATH_ARRAY)
@@ -122,20 +106,14 @@ string Func_json_remove::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
             }
             itemSize++;
             if (json_skip_array_item(&jsEg))
-            {
-              isNull = true;
-              return "";
-            }
+              goto error;
             break;
           default: break;
         }
       }
 
       if (unlikely(jsEg.s.error))
-      {
-        isNull = true;
-        return "";
-      }
+        goto error;
 
       continue;
     }
@@ -156,10 +134,7 @@ string Func_json_remove::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
               goto v_found;
 
             if (json_skip_key(&jsEg))
-            {
-              isNull = true;
-              return "";
-            }
+              goto error;
 
             remStart = (const char*)jsEg.s.c_str;
             itemSize++;
@@ -169,10 +144,7 @@ string Func_json_remove::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
       }
 
       if (unlikely(jsEg.s.error))
-      {
-        isNull = true;
-        return "";
-      }
+        goto error;
 
       continue;
     }
@@ -180,34 +152,31 @@ string Func_json_remove::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
   v_found:
 
     if (json_skip_key(&jsEg) || json_scan_next(&jsEg))
-    {
-      isNull = true;
-      return "";
-    }
-
+      goto error;
     remEnd = (jsEg.state == JST_VALUE && itemSize == 0) ? (const char*)jsEg.s.c_str
                                                         : (const char*)(jsEg.s.c_str - jsEg.sav_c_len);
     ret.clear();
 
     ret.append(js, remStart - js);
     if (jsEg.state == JST_KEY && itemSize > 0)
-      ret.append(",", 1);
+      ret.append(",");
     ret.append(remEnd, js + jsLen - remEnd);
 
-    rawJs.swap(ret);
+    rawJS.swap(ret);
     ret.clear();
   }
 
-  json_scan_start(&jsEg, cs, (const uchar*)rawJs.data(), (const uchar*)rawJs.data() + rawJs.size());
+  json_scan_start(&jsEg, cs, (const uchar*)rawJS.data(), (const uchar*)rawJS.data() + rawJS.size());
 
   ret.clear();
   if (doFormat(&jsEg, ret, Func_json_format::LOOSE))
-  {
-    isNull = true;
-    return "";
-  }
+    goto error;
 
   isNull = false;
   return ret;
+
+error:
+  isNull = true;
+  return "";
 }
 }  // namespace funcexp

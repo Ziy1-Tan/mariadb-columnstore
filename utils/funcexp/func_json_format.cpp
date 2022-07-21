@@ -1,5 +1,4 @@
-#include <cassert>
-#include <string>
+#include <string_view>
 using namespace std;
 
 #include "functor_json.h"
@@ -15,8 +14,6 @@ using namespace joblist;
 #include "jsonhelpers.h"
 using namespace funcexp::helpers;
 
-
-
 namespace funcexp
 {
 CalpontSystemCatalog::ColType Func_json_format::operationType(FunctionParm& fp,
@@ -28,12 +25,12 @@ CalpontSystemCatalog::ColType Func_json_format::operationType(FunctionParm& fp,
 string Func_json_format::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                    execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
+  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
   int tabSize = 4;
-  json_engine_t je;
+  json_engine_t jsEg;
 
   if (fmt == DETAILED)
   {
@@ -50,11 +47,11 @@ string Func_json_format::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
     }
   }
 
-  json_scan_start(&je, fp[0]->data()->resultType().getCharset(), (const uchar*)tmpJs.data(),
-                  (const uchar*)tmpJs.data() + tmpJs.size());
+  json_scan_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)jsExp.data(),
+                  (const uchar*)jsExp.data() + jsExp.size());
 
   string ret;
-  if (doFormat(&je, ret, fmt, tabSize))
+  if (doFormat(&jsEg, ret, fmt, tabSize))
   {
     isNull = true;
     return "";

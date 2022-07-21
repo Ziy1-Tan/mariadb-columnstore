@@ -1,6 +1,3 @@
-#include <string_view>
-using namespace std;
-
 #include "functor_json.h"
 #include "functioncolumn.h"
 using namespace execplan;
@@ -22,34 +19,32 @@ CalpontSystemCatalog::ColType Func_json_unquote::operationType(FunctionParm& fp,
 std::string Func_json_unquote::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                          execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
+  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
-  json_engine_t je;
+  json_engine_t jsEg;
   int strLen;
 
-  const char* js = tmpJs.data();
+  const char* js = jsExp.data();
   const CHARSET_INFO* cs = type.getCharset();
 
-  json_scan_start(&je, cs, (const uchar*)js, (const uchar*)js + tmpJs.size());
+  json_scan_start(&jsEg, cs, (const uchar*)js, (const uchar*)js + jsExp.size());
 
-  json_read_value(&je);
+  json_read_value(&jsEg);
 
-  if (unlikely(je.s.error) || je.value_type != JSON_VALUE_STRING)
+  if (unlikely(jsEg.s.error) || jsEg.value_type != JSON_VALUE_STRING)
     return js;
 
-  char* buf = new char[je.value_len];
-  if ((strLen = json_unescape(cs, je.value, je.value + je.value_len, &my_charset_utf8mb3_general_ci,
-                              (uchar*)buf, (uchar*)(buf + je.value_len))) >= 0)
+  char* buf = (char*)alloca(jsEg.value_len);
+  if ((strLen = json_unescape(cs, jsEg.value, jsEg.value + jsEg.value_len, &my_charset_utf8mb3_general_ci,
+                              (uchar*)buf, (uchar*)(buf + jsEg.value_len))) >= 0)
   {
     buf[strLen] = '\0';
     string ret = buf;
-    delete[] buf;
     return strLen == 0 ? "" : ret;
   }
 
-  delete[] buf;
   return js;
 }
 }  // namespace funcexp

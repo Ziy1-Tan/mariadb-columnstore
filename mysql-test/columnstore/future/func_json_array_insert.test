@@ -1,4 +1,4 @@
-#-- source ../include/have_columnstore.inc
+--source ../include/have_columnstore.inc
 --disable_warnings
 DROP DATABASE IF EXISTS json_array_insert_db;
 
@@ -95,4 +95,3 @@ DROP TABLE t2;
 DROP TABLE t1;
 
 DROP DATABASE json_array_insert_db;
-

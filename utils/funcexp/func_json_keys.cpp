@@ -1,7 +1,3 @@
-#include <cstring>
-#include <string>
-using namespace std;
-
 #include "functor_json.h"
 #include "functioncolumn.h"
 #include "constantcolumn.h"
@@ -18,30 +14,30 @@ using namespace funcexp::helpers;
 
 namespace
 {
-bool checkKeyInList(const string& res, const uchar* key, int key_len)
+bool checkKeyInList(const string& res, const uchar* key, const int keyLen)
 {
-  const uchar* c = (const uchar*)res.c_str() + 2;                /* beginning '["' */
+  const uchar* curr = (const uchar*)res.c_str() + 2;             /* beginning '["' */
   const uchar* end = (const uchar*)res.c_str() + res.size() - 1; /* ending '"' */
 
-  while (c < end)
+  while (curr < end)
   {
     int i;
-    for (i = 0; c[i] != '"' && i < key_len; i++)
+    for (i = 0; curr[i] != '"' && i < keyLen; i++)
     {
-      if (c[i] != key[i])
+      if (curr[i] != key[i])
         break;
     }
-    if (c[i] == '"')
+    if (curr[i] == '"')
     {
-      if (i == key_len)
+      if (i == keyLen)
         return true;
     }
     else
     {
-      while (c[i] != '"')
+      while (curr[i] != '"')
         i++;
     }
-    c += i + 4; /* skip ', "' */
+    curr += i + 4; /* skip ', "' */
   }
   return false;
 }
@@ -58,16 +54,16 @@ CalpontSystemCatalog::ColType Func_json_keys::operationType(FunctionParm& fp,
 string Func_json_keys::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                  execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
+  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
   json_engine_t je;
-  uint keySize = 0;
-  int arrayCounters[JSON_DEPTH_LIMIT];
+  IntType keySize = 0;
+  string ret;
 
-  json_scan_start(&je, fp[0]->data()->resultType().getCharset(), (const uchar*)tmpJs.data(),
-                  (const uchar*)tmpJs.data() + tmpJs.size());
+  json_scan_start(&je, fp[0]->data()->resultType().getCharset(), (const uchar*)jsExp.data(),
+                  (const uchar*)jsExp.data() + jsExp.size());
 
   if (fp.size() > 1)
   {
@@ -75,78 +71,61 @@ string Func_json_keys::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isN
     {
       // check if path column is const
       if (!path.constant)
-      {
-        ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[1]->data());
-        path.set_constant_flag((constCol != nullptr));
-      }
+        markConstFlag(path, fp[1]);
 
-      const string_view tmpPath = fp[1]->data()->getStrVal(row, isNull);
+      const string_view pathExp = fp[1]->data()->getStrVal(row, isNull);
+      const char* rawPath = pathExp.data();
       if (isNull)
         return "";
-      if (setupPathNoWildcard(&path.p, fp[1]->data()->resultType().getCharset(), (const uchar*)tmpPath.data(),
-                              (const uchar*)tmpPath.data() + tmpPath.size()))
-      {
-        isNull = true;
-        return "";
-      }
+      if (pathSetupNwc(&path.p, fp[1]->data()->resultType().getCharset(), (const uchar*)rawPath,
+                       (const uchar*)rawPath + pathExp.size()))
+        goto error;
+
       path.parsed = path.constant;
     }
 
-    path.cur_step = path.p.steps;
-    if (json_find_path(&je, &path.p, &path.cur_step, arrayCounters))
+    path.currStep = path.p.steps;
+    if (jsonFindPath(&je, &path.p, &path.currStep))
     {
       if (je.s.error)
       {
       }
-      isNull = true;
-      return "";
+      goto error;
     }
   }
 
   if (json_read_value(&je))
-  {
-    isNull = true;
-    return "";
-  }
+    goto error;
 
   if (je.value_type != JSON_VALUE_OBJECT)
-  {
-    isNull = true;
-    return "";
-  }
+    goto error;
 
-  string ret("[");
-
+  ret.append("[");
   while (json_scan_next(&je) == 0 && je.state != JST_OBJ_END)
   {
-    const uchar *key_start, *key_end;
-    int key_len;
+    const uchar *keyStart, *keyEnd;
+    int keyLen;
 
     switch (je.state)
     {
       case JST_KEY:
-        key_start = je.s.c_str;
+        keyStart = je.s.c_str;
         do
         {
-          key_end = je.s.c_str;
+          keyEnd = je.s.c_str;
         } while (json_read_keyname_chr(&je) == 0);
 
         if (unlikely(je.s.error))
-        {
-          isNull = true;
-          return "";
-        }
+          goto error;
 
-        key_len = (int)(key_end - key_start);
+        keyLen = (int)(keyEnd - keyStart);
 
-        if (!checkKeyInList(ret, key_start, key_len))
+        if (!checkKeyInList(ret, keyStart, keyLen))
         {
           if (keySize > 0)
-          {
             ret.append(", ");
-          }
           ret.append("\"");
-          ret.append((const char*)key_start, key_len);
+          ret.append((const char*)keyStart, keyLen);
           ret.append("\"");
           keySize++;
         }
@@ -166,6 +145,7 @@ string Func_json_keys::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isN
     return ret;
   }
 
+error:
   isNull = true;
   return "";
 }

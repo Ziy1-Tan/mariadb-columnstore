@@ -1,6 +1,3 @@
-#include <string_view>
-using namespace std;
-
 #include "functor_json.h"
 #include "functioncolumn.h"
 #include "constantcolumn.h"
@@ -14,7 +11,7 @@ using namespace joblist;
 
 namespace funcexp
 {
-bool Json_engine_scan::check_and_get_value_complex(string& ret, int* error)
+bool JSEngineScanner::checkAndGetComplexVal(string& ret, int* error)
 {
   if (json_value_scalar(this))
   {
@@ -45,7 +42,7 @@ string Func_json_query::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& is
                                   execplan::CalpontSystemCatalog::ColType& type)
 {
   string ret;
-  isNull = Json_path_extractor::extract(ret, row, fp[0], fp[1]);
+  isNull = JSPathExtractor::extract(ret, row, fp[0], fp[1]);
   return isNull ? "" : ret;
 }
 }  // namespace funcexp

@@ -23,7 +23,7 @@ CalpontSystemCatalog::ColType Func_json_insert::operationType(FunctionParm& fp,
 string Func_json_insert::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                    execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
+  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
@@ -40,37 +40,32 @@ string Func_json_insert::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
   {
     for (size_t i = 1; i < fp.size(); i += 2)
     {
-      json_path_with_flags path;
-      ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[i]->data());
-      path.set_constant_flag((constCol != nullptr));
+      JsonPath path;
+      markConstFlag(path, fp[i]);
       paths.push_back(path);
     }
   }
 
+  // Save the result of each merge and the result of the final merge separately
   string ret;
-  string rawJs{tmpJs};
+  string rawJS{jsExp};
   for (size_t i = 1, j = 0; i < fp.size(); i += 2, j++)
   {
-    const char* js = rawJs.data();
-    const size_t jsLen = rawJs.size();
+    const char* js = rawJS.data();
+    const size_t jsLen = rawJS.size();
 
-    int arrayCounters[JSON_DEPTH_LIMIT];
-    json_path_with_flags& currPath = paths[j];
+    JsonPath& currPath = paths[j];
     const json_path_step_t* lastStep;
     const char* valEnd;
 
     if (!currPath.parsed)
     {
-      const string_view tmpPath = fp[i]->data()->getStrVal(row, isNull);
-      if (isNull)
-        return "";
+      const string_view pathExp = fp[i]->data()->getStrVal(row, isNull);
+      const char* rawPath = pathExp.data();
 
-      if (setupPathNoWildcard(&currPath.p, fp[i]->data()->resultType().getCharset(),
-                              (const uchar*)tmpPath.data(), (const uchar*)tmpPath.data() + tmpPath.size()))
-      {
-        isNull = true;
-        return "";
-      }
+      if (isNull || pathSetupNwc(&currPath.p, fp[i]->data()->resultType().getCharset(), (const uchar*)rawPath,
+                                 (const uchar*)rawPath + pathExp.size()))
+        goto error;
 
       currPath.p.last_step--;
       currPath.parsed = currPath.constant;
@@ -81,29 +76,22 @@ string Func_json_insert::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
     if (currPath.p.last_step < currPath.p.steps)
       goto v_found;
 
-    currPath.cur_step = currPath.p.steps;
+    currPath.currStep = currPath.p.steps;
 
-    if (currPath.p.last_step >= currPath.p.steps &&
-        json_find_path(&jsEg, &currPath.p, &currPath.cur_step, arrayCounters))
+    if (currPath.p.last_step >= currPath.p.steps && jsonFindPath(&jsEg, &currPath.p, &currPath.currStep))
     {
       if (jsEg.s.error)
-      {
-        isNull = true;
-        return "";
-      }
+        goto error;
       continue;
     }
 
     if (json_read_value(&jsEg))
-    {
-      isNull = true;
-      return "";
-    }
+      goto error;
 
     lastStep = currPath.p.last_step + 1;
     if (lastStep->type & JSON_PATH_ARRAY)
     {
-      int itemSize = 0;
+      IntType itemSize = 0;
 
       if (jsEg.value_type != JSON_VALUE_ARRAY)
       {
@@ -137,16 +125,14 @@ string Func_json_insert::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
         if (jsEg.value_type == JSON_VALUE_OBJECT)
         {
           if (json_skip_level(&jsEg))
-          {
-            isNull = true;
-            return "";
-          }
+            goto error;
         }
 
         if (isArrAutoWrap)
           ret.append((const char*)valStart, jsEg.s.c_str - valStart);
         ret.append(", ");
-        ret.append(getJsonValue(row, fp[i + 1]));
+        if (appendJSValue(ret, cs, row, fp[i + 1]))
+          goto error;
         if (isArrAutoWrap)
           ret.append("]");
         ret.append((const char*)jsEg.s.c_str, js + jsLen - (const char*)jsEg.s.c_str);
@@ -163,20 +149,14 @@ string Func_json_insert::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
               goto v_found;
             itemSize++;
             if (json_skip_array_item(&jsEg))
-            {
-              isNull = true;
-              return "";
-            }
+              goto error;
             break;
           default: break;
         }
       }
 
       if (unlikely(jsEg.s.error))
-      {
-        isNull = true;
-        return "";
-      }
+        goto error;
 
       if (!isInsertMode)
         continue;
@@ -186,12 +166,13 @@ string Func_json_insert::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
       ret.append(js, valEnd - js);
       if (itemSize > 0)
         ret.append(", ");
-      ret.append(getJsonValue(row, fp[i + 1]));
+      if (appendJSValue(ret, cs, row, fp[i + 1]))
+        goto error;
       ret.append(valEnd, js + jsLen - valEnd);
     }
     else /*JSON_PATH_KEY*/
     {
-      uint keySize = 0;
+      IntType keySize = 0;
 
       if (jsEg.value_type != JSON_VALUE_OBJECT)
         continue;
@@ -206,33 +187,32 @@ string Func_json_insert::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
               goto v_found;
             keySize++;
             if (json_skip_key(&jsEg))
-            {
-              isNull = true;
-              return "";
-            }
+              goto error;
             break;
           default: break;
         }
       }
 
       if (unlikely(jsEg.s.error))
-      {
-        isNull = true;
-        return "";
-      }
+        goto error;
 
       if (!isInsertMode)
         continue;
 
       valEnd = (const char*)(jsEg.s.c_str - jsEg.sav_c_len);
+
       ret.clear();
       ret.append(js, valEnd - js);
+
       if (keySize > 0)
         ret.append(", ");
+
       ret.append("\"");
       ret.append((const char*)lastStep->key, lastStep->key_end - lastStep->key);
-      ret.append("\":", 2);
-      ret.append(getJsonValue(row, fp[i + 1]));
+      ret.append("\":");
+
+      if (appendJSValue(ret, cs, row, fp[i + 1]))
+        goto error;
       ret.append(valEnd, js + jsLen - valEnd);
     }
 
@@ -244,42 +224,38 @@ string Func_json_insert::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
       continue;
 
     if (json_read_value(&jsEg))
-    {
-      isNull = true;
-      return "";
-    }
+      goto error;
 
     valEnd = (const char*)jsEg.value_begin;
     ret.clear();
     if (!json_value_scalar(&jsEg))
     {
       if (json_skip_level(&jsEg))
-      {
-        isNull = true;
-        return "";
-      }
+        goto error;
     }
 
     ret.append(js, valEnd - js);
-    ret.append(getJsonValue(row, fp[i + 1]));
+    if (appendJSValue(ret, cs, row, fp[i + 1]))
+      goto error;
     ret.append((const char*)jsEg.s.c_str, js + jsLen - (const char*)jsEg.s.c_str);
 
   continue_point:
-    // rawJs save the json string for next loop
-    rawJs.swap(ret);
+    // rawJS save the json string for next loop
+    rawJS.swap(ret);
     ret.clear();
   }
 
-  json_scan_start(&jsEg, cs, (const uchar*)rawJs.data(), (const uchar*)rawJs.data() + rawJs.size());
+  json_scan_start(&jsEg, cs, (const uchar*)rawJS.data(), (const uchar*)rawJS.data() + rawJS.size());
 
   ret.clear();
   if (doFormat(&jsEg, ret, Func_json_format::LOOSE))
-  {
-    isNull = true;
-    return "";
-  }
+    goto error;
 
   isNull = false;
   return ret;
+
+error:
+  isNull = true;
+  return "";
 }
 }  // namespace funcexp

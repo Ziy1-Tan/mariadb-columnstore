@@ -28,20 +28,21 @@ CalpontSystemCatalog::ColType Func_json_contains_path::operationType(
 bool Func_json_contains_path::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
                                          CalpontSystemCatalog::ColType& type)
 {
-  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
-  int arrayCounters[JSON_DEPTH_LIMIT];
-  bool hasNegPath = false;
-
+  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return false;
+
+#ifdef MYSQL_GE_1009
+  int arrayCounters[JSON_DEPTH_LIMIT];
+  bool hasNegPath = false;
+#endif
+  const int argSize = fp.size() - 2;
 
   if (!isModeParsed)
   {
     if (!isModeConst)
-    {
-      ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[1]->data());
-      isModeConst = (constCol != nullptr);
-    }
+      isModeConst = (dynamic_cast<ConstantColumn*>(fp[1]->data()) != nullptr);
+
     string mode = fp[1]->data()->getStrVal(row, isNull);
     if (isNull)
       return false;
@@ -62,62 +63,67 @@ bool Func_json_contains_path::getBoolVal(Row& row, FunctionParm& fp, bool& isNul
   {
     for (size_t i = 2; i < fp.size(); i++)
     {
-      json_path_with_flags path;
-      ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[i]->data());
-      path.set_constant_flag((constCol != nullptr));
+      JsonPath path;
+      markConstFlag(path, fp[i]);
       paths.push_back(path);
     }
-    hasFound.assign(fp.size() - 2, false);
+    hasFound.assign(argSize, false);
   }
 
   for (size_t i = 2; i < fp.size(); i++)
   {
-    json_path_with_flags& currPath = paths[i - 2];
+    JsonPath& currPath = paths[i - 2];
 
     if (!currPath.parsed)
     {
-      const string_view tmpPath = fp[i]->data()->getStrVal(row, isNull);
-      if (isNull)
-        return false;
-
-      if (json_path_setup(&currPath.p, fp[i]->data()->resultType().getCharset(), (const uchar*)tmpPath.data(),
-                          (const uchar*)tmpPath.data() + tmpPath.size()))
+      const string_view pathExp = fp[i]->data()->getStrVal(row, isNull);
+      const char* rawPath = pathExp.data();
+      if (isNull || json_path_setup(&currPath.p, fp[i]->data()->resultType().getCharset(),
+                                    (const uchar*)rawPath, (const uchar*)rawPath + pathExp.size()))
       {
         isNull = true;
         return false;
       }
       currPath.parsed = currPath.constant;
+#ifdef MYSQL_GE_1009
       hasNegPath |= currPath.p.types_used & JSON_PATH_NEGATIVE_INDEX;
+#endif
     }
   }
 
   json_engine_t jsEg;
   json_path_t p;
-  json_get_path_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)tmpJs.data(),
-                      (const uchar*)tmpJs.data() + tmpJs.size(), &p);
+  json_get_path_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)jsExp.data(),
+                      (const uchar*)jsExp.data() + jsExp.size(), &p);
 
   bool result = false;
   int needFound = 0;
 
   if (!isModeOne)
   {
-    hasFound.assign(fp.size() - 2, false);
-    needFound = fp.size() - 2;
+    hasFound.assign(argSize, false);
+    needFound = argSize;
   }
 
   while (json_get_path_next(&jsEg, &p) == 0)
   {
+#ifdef MYSQL_GE_1009
     if (hasNegPath && jsEg.value_type == JSON_VALUE_ARRAY &&
         json_skip_array_and_count(&jsEg, arrayCounters + (p.last_step - p.steps)))
     {
       result = true;
       break;
     }
+#endif
 
-    for (int restSize = fp.size() - 2, curr = 0; restSize > 0; restSize--, curr++)
+    for (int restSize = argSize, curr = 0; restSize > 0; restSize--, curr++)
     {
-      json_path_with_flags& currPath = paths[curr];
-      if (json_path_compare(&currPath.p, &p, jsEg.value_type, arrayCounters) >= 0)
+      JsonPath& currPath = paths[curr];
+#ifdef MYSQL_GE_1009
+      if (jsonPathCompare(&currPath.p, &p, jsEg.value_type, arrayCounters) >= 0)
+#else
+      if (jsonPathCompare(&currPath.p, &p, jsEg.value_type) >= 0)
+#endif
       {
         if (isModeOne)
         {

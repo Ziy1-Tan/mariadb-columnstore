@@ -12,49 +12,52 @@
 #include "functor_int.h"
 #include "functor_str.h"
 
+// Check if mariadb version >= 10.9
+#if MYSQL_VERSION_ID >= 100900
+#ifndef MYSQL_GE_1009
+#define MYSQL_GE_1009
+#endif
+#endif
+
 namespace funcexp
 {
-class json_path_with_flags
+// The json_path_t wrapper include some flags
+struct JsonPath
 {
  public:
-  json_path_with_flags() : constant(false), parsed(false), cur_step{nullptr}
+  JsonPath() : constant(false), parsed(false), currStep(nullptr)
   {
   }
   json_path_t p;
-  bool constant;
-  bool parsed;
-  json_path_step_t* cur_step;
-  void set_constant_flag(bool s_constant)
-  {
-    constant = s_constant;
-    parsed = false;
-  }
+  bool constant;  // check if the argument is constant
+  bool parsed;    // check if the argument is parsed
+  json_path_step_t* currStep;
 };
 
-class Json_engine_scan : public json_engine_t
+class JSEngineScanner : public json_engine_t
 {
  public:
-  Json_engine_scan(CHARSET_INFO* cs, const uchar* str, const uchar* end)
+  JSEngineScanner(CHARSET_INFO* cs, const uchar* str, const uchar* end)
   {
     json_scan_start(this, cs, str, end);
   }
-  Json_engine_scan(const std::string& str, CHARSET_INFO* cs)
-   : Json_engine_scan(cs, (const uchar*)str.c_str(), (const uchar*)str.c_str() + str.size())
+  JSEngineScanner(const std::string& str, CHARSET_INFO* cs)
+   : JSEngineScanner(cs, (const uchar*)str.data(), (const uchar*)str.data() + str.size())
   {
   }
-  bool check_and_get_value_scalar(std::string& res, int* error);
-  bool check_and_get_value_complex(std::string& res, int* error);
+  bool checkAndGetScalar(std::string& ret, int* error);
+  bool checkAndGetComplexVal(std::string& ret, int* error);
 };
 
-class Json_path_extractor : public json_path_with_flags
+class JSPathExtractor : public JsonPath
 {
  protected:
-  virtual ~Json_path_extractor()
+  virtual ~JSPathExtractor()
   {
   }
-  virtual bool check_and_get_value(Json_engine_scan* je, std::string& ret, int* error) = 0;
-  bool extract(std::string& ret, rowgroup::Row& row, execplan::SPTP& funcParamJs,
-               execplan::SPTP& funcParamPath);
+  virtual bool checkAndGetValue(JSEngineScanner* je, std::string& ret, int* error) = 0;
+  bool extract(std::string& ret, rowgroup::Row& row, execplan::SPTP& funcParmJS,
+               execplan::SPTP& funcParmPath);
 };
 /** @brief Func_json_valid class
  */
@@ -99,7 +102,7 @@ class Func_json_depth : public Func_Int
 class Func_json_length : public Func_Int
 {
  protected:
-  json_path_with_flags path;
+  JsonPath path;
 
  public:
   Func_json_length() : Func_Int("json_length")
@@ -215,7 +218,7 @@ class Func_json_array : public Func_Str
 class Func_json_keys : public Func_Str
 {
  protected:
-  json_path_with_flags path;
+  JsonPath path;
 
  public:
   Func_json_keys() : Func_Str("json_keys")
@@ -236,7 +239,7 @@ class Func_json_keys : public Func_Str
 class Func_json_exists : public Func_Bool
 {
  protected:
-  json_path_with_flags path;
+  JsonPath path;
 
  public:
   Func_json_exists() : Func_Bool("json_exists")
@@ -258,7 +261,7 @@ class Func_json_exists : public Func_Bool
 class Func_json_quote : public Func_Str
 {
  protected:
-  json_path_with_flags path;
+  JsonPath path;
 
  public:
   Func_json_quote() : Func_Str("json_quote")
@@ -280,7 +283,7 @@ class Func_json_quote : public Func_Str
 class Func_json_unquote : public Func_Str
 {
  protected:
-  json_path_with_flags path;
+  JsonPath path;
 
  public:
   Func_json_unquote() : Func_Str("json_unquote")
@@ -378,7 +381,7 @@ class Func_json_merge_patch : public Func_Str
 
 /** @brief Func_json_value class
  */
-class Func_json_value : public Func_Str, public Json_path_extractor
+class Func_json_value : public Func_Str, public JSPathExtractor
 {
  public:
   Func_json_value() : Func_Str("json_value")
@@ -388,9 +391,9 @@ class Func_json_value : public Func_Str, public Json_path_extractor
   {
   }
 
-  bool check_and_get_value(Json_engine_scan* je, string& res, int* error) override
+  bool checkAndGetValue(JSEngineScanner* je, string& res, int* error) override
   {
-    return je->check_and_get_value_scalar(res, error);
+    return je->checkAndGetScalar(res, error);
   }
 
   execplan::CalpontSystemCatalog::ColType operationType(
@@ -402,7 +405,7 @@ class Func_json_value : public Func_Str, public Json_path_extractor
 
 /** @brief Func_json_query class
  */
-class Func_json_query : public Func_Str, public Json_path_extractor
+class Func_json_query : public Func_Str, public JSPathExtractor
 {
  public:
   Func_json_query() : Func_Str("json_query")
@@ -412,9 +415,9 @@ class Func_json_query : public Func_Str, public Json_path_extractor
   {
   }
 
-  bool check_and_get_value(Json_engine_scan* je, string& res, int* error) override
+  bool checkAndGetValue(JSEngineScanner* je, string& res, int* error) override
   {
-    return je->check_and_get_value_complex(res, error);
+    return je->checkAndGetComplexVal(res, error);
   }
 
   execplan::CalpontSystemCatalog::ColType operationType(
@@ -428,7 +431,7 @@ class Func_json_query : public Func_Str, public Json_path_extractor
 class Func_json_contains : public Func_Bool
 {
  protected:
-  json_path_with_flags path;
+  JsonPath path;
   bool arg2Const;
   bool arg2Parsed;  // argument 2 is a constant or has been parsed
   std::string_view arg2Val;
@@ -452,7 +455,7 @@ class Func_json_contains : public Func_Bool
 class Func_json_array_append : public Func_Str
 {
  protected:
-  std::vector<json_path_with_flags> paths;
+  std::vector<JsonPath> paths;
 
  public:
   Func_json_array_append() : Func_Str("json_array_append")
@@ -473,7 +476,7 @@ class Func_json_array_append : public Func_Str
 class Func_json_array_insert : public Func_Str
 {
  protected:
-  std::vector<json_path_with_flags> paths;
+  std::vector<JsonPath> paths;
 
  public:
   Func_json_array_insert() : Func_Str("json_array_insert")
@@ -505,7 +508,7 @@ class Func_json_insert : public Func_Str
 
  protected:
   MODE mode;
-  std::vector<json_path_with_flags> paths;
+  std::vector<JsonPath> paths;
 
  public:
   Func_json_insert() : Func_Str("json_insert"), mode(INSERT)
@@ -542,7 +545,7 @@ class Func_json_insert : public Func_Str
 class Func_json_remove : public Func_Str
 {
  protected:
-  std::vector<json_path_with_flags> paths;
+  std::vector<JsonPath> paths;
 
  public:
   Func_json_remove() : Func_Str("json_remove")
@@ -564,7 +567,7 @@ class Func_json_remove : public Func_Str
 class Func_json_contains_path : public Func_Bool
 {
  protected:
-  std::vector<json_path_with_flags> paths;
+  std::vector<JsonPath> paths;
   std::vector<bool> hasFound;
   bool isModeOne;
   bool isModeConst;
@@ -584,5 +587,53 @@ class Func_json_contains_path : public Func_Bool
 
   bool getBoolVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                   execplan::CalpontSystemCatalog::ColType& type);
+};
+
+/** @brief Func_json_overlaps class
+ */
+class Func_json_overlaps : public Func_Bool
+{
+ protected:
+  JsonPath path;
+
+ public:
+  Func_json_overlaps() : Func_Bool("json_overlaps")
+  {
+  }
+  virtual ~Func_json_overlaps()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  bool getBoolVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                  execplan::CalpontSystemCatalog::ColType& type);
+};
+/** @brief Func_json_search class
+ */
+class Func_json_search : public Func_Str
+{
+ protected:
+  std::vector<JsonPath> paths;
+  bool isModeParsed;
+  bool isModeConst;
+  bool isModeOne;
+  int escapeStr;
+
+ public:
+  Func_json_search()
+   : Func_Str("json_search"), isModeParsed(false), isModeConst(false), isModeOne(false), escapeStr('\\')
+  {
+  }
+  virtual ~Func_json_search()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                        execplan::CalpontSystemCatalog::ColType& type);
 };
 }  // namespace funcexp

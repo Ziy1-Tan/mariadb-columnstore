@@ -1,6 +1,3 @@
-#include <string_view>
-using namespace std;
-
 #include "functor_json.h"
 #include "functioncolumn.h"
 using namespace execplan;
@@ -22,22 +19,22 @@ CalpontSystemCatalog::ColType Func_json_depth::operationType(FunctionParm& fp,
 int64_t Func_json_depth::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                    execplan::CalpontSystemCatalog::ColType& op_ct)
 {
-  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
+  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return 0;
 
-  json_engine_t je;
+  json_engine_t jsEg;
   int depth = 0, currDepth = 0;
   bool incDepth = true;
 
-  const char* js = tmpJs.data();
+  const char* js = jsExp.data();
 
-  json_scan_start(&je, fp[0]->data()->resultType().getCharset(), (const uchar*)js,
-                  (const uchar*)js + tmpJs.size());
+  json_scan_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)js,
+                  (const uchar*)js + jsExp.size());
 
   do
   {
-    switch (je.state)
+    switch (jsEg.state)
     {
       case JST_VALUE:
       case JST_KEY:
@@ -59,9 +56,9 @@ int64_t Func_json_depth::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& i
         break;
       default: break;
     }
-  } while (json_scan_next(&je) == 0);
+  } while (json_scan_next(&jsEg) == 0);
 
-  if (likely(!je.s.error))
+  if (likely(!jsEg.s.error))
     return depth;
 
   isNull = true;

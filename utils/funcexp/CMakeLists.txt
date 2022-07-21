@@ -73,9 +73,11 @@ set(funcexp_LIB_SRCS
     func_json_merge_patch.cpp
     func_json_normalize.cpp
     func_json_object.cpp
+    func_json_overlaps.cpp
     func_json_query.cpp
     func_json_quote.cpp
     func_json_remove.cpp
+    func_json_search.cpp
     func_json_type.cpp
     func_json_unquote.cpp
     func_json_valid.cpp

@@ -1,6 +1,3 @@
-#include <string_view>
-using namespace std;
-
 #include "functor_json.h"
 #include "functioncolumn.h"
 using namespace execplan;
@@ -22,28 +19,28 @@ CalpontSystemCatalog::ColType Func_json_type::operationType(FunctionParm& fp,
 string Func_json_type::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                  execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
+  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
-  json_engine_t je;
+  json_engine_t jsEg;
   string result;
 
-  json_scan_start(&je, fp[0]->data()->resultType().getCharset(), (const uchar*)tmpJs.data(),
-                  (const uchar*)tmpJs.data() + tmpJs.size());
+  json_scan_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)jsExp.data(),
+                  (const uchar*)jsExp.data() + jsExp.size());
 
-  if (json_read_value(&je))
+  if (json_read_value(&jsEg))
   {
     isNull = true;
     return "";
   }
 
-  switch (je.value_type)
+  switch (jsEg.value_type)
   {
     case JSON_VALUE_OBJECT: result = "OBJECT"; break;
     case JSON_VALUE_ARRAY: result = "ARRAY"; break;
     case JSON_VALUE_STRING: result = "STRING"; break;
-    case JSON_VALUE_NUMBER: result = (je.num_flags & JSON_NUM_FRAC_PART) ? "DOUBLE" : "INTEGER"; break;
+    case JSON_VALUE_NUMBER: result = (jsEg.num_flags & JSON_NUM_FRAC_PART) ? "DOUBLE" : "INTEGER"; break;
     case JSON_VALUE_TRUE:
     case JSON_VALUE_FALSE: result = "BOOLEAN"; break;
     default: result = "NULL"; break;

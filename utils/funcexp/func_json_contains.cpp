@@ -1,6 +1,3 @@
-#include <string_view>
-using namespace std;
-
 #include "functor_json.h"
 #include "functioncolumn.h"
 #include "constantcolumn.h"
@@ -15,23 +12,6 @@ using namespace funcexp::helpers;
 
 namespace
 {
-static bool findKeyInObject(json_engine_t* jsEg, json_string_t* key)
-{
-  const uchar* str = key->c_str;
-
-  while (json_scan_next(jsEg) == 0 && jsEg->state != JST_OBJ_END)
-  {
-    DBUG_ASSERT(jsEg->state == JST_KEY);
-    if (json_key_matches(jsEg, key))
-      return true;
-    if (json_skip_key(jsEg))
-      return false;
-    key->c_str = str;
-  }
-
-  return false;
-}
-
 static bool checkContains(json_engine_t* jsEg, json_engine_t* valEg)
 {
   json_engine_t localJsEg;
@@ -179,13 +159,16 @@ CalpontSystemCatalog::ColType Func_json_contains::operationType(FunctionParm& fp
 bool Func_json_contains::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
                                     CalpontSystemCatalog::ColType& type)
 {
-  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
-  if (isNull)
+  bool isNullJS = false, isNullVal = false;
+  const string_view jsExp = fp[0]->data()->getStrVal(row, isNullJS);
+  const string_view valExp = fp[1]->data()->getStrVal(row, isNullVal);
+  if (isNullJS || isNullVal)
+  {
+    isNull = true;
     return false;
+  }
 
-  const string_view tmpVal = fp[1]->data()->getStrVal(row, isNull);
-  if (isNull)
-    return false;
+  bool result = false;
 
   if (!arg2Parsed)
   {
@@ -194,47 +177,38 @@ bool Func_json_contains::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
       ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[1]->data());
       arg2Const = (constCol != nullptr);
     }
-    arg2Val = tmpVal;
+    arg2Val = valExp;
     arg2Parsed = arg2Const;
   }
 
   json_engine_t jsEg;
-  json_scan_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)tmpJs.data(),
-                  (const uchar*)tmpJs.data() + tmpJs.size());
+  json_scan_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)jsExp.data(),
+                  (const uchar*)jsExp.data() + jsExp.size());
 
   if (fp.size() > 2)
   {
-    int arrayCounters[JSON_DEPTH_LIMIT];
     if (!path.parsed)
     {
       // check if path column is const
       if (!path.constant)
-      {
-        ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[2]->data());
-        path.set_constant_flag((constCol != nullptr));
-      }
+        markConstFlag(path, fp[2]);
 
-      const string_view tmpPath = fp[2]->data()->getStrVal(row, isNull);
-      if (isNull)
-        return false;
+      const string_view pathExp = fp[2]->data()->getStrVal(row, isNull);
+      const char* rawPath = pathExp.data();
+      if (isNull || pathSetupNwc(&path.p, fp[2]->data()->resultType().getCharset(), (const uchar*)rawPath,
+                                 (const uchar*)rawPath + pathExp.size()))
+        goto error;
 
-      if (setupPathNoWildcard(&path.p, fp[2]->data()->resultType().getCharset(), (const uchar*)tmpPath.data(),
-                              (const uchar*)tmpPath.data() + tmpPath.size()))
-      {
-        isNull = true;
-        return false;
-      }
       path.parsed = path.constant;
     }
 
-    path.cur_step = path.p.steps;
-    if (json_find_path(&jsEg, &path.p, &path.cur_step, arrayCounters))
+    path.currStep = path.p.steps;
+    if (jsonFindPath(&jsEg, &path.p, &path.currStep))
     {
       if (jsEg.s.error)
       {
       }
-      isNull = true;
-      return false;
+      goto error;
     }
   }
 
@@ -243,19 +217,17 @@ bool Func_json_contains::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
                   (const uchar*)arg2Val.data() + arg2Val.size());
 
   if (json_read_value(&jsEg) || json_read_value(&valEg))
+    goto error;
 
-  {
-    isNull = true;
-    return false;
-  }
-  bool result = checkContains(&jsEg, &valEg);
+  result = checkContains(&jsEg, &valEg);
 
   if (unlikely(jsEg.s.error || valEg.s.error))
-  {
-    isNull = true;
-    return false;
-  }
+    goto error;
 
   return result;
+
+error:
+  isNull = true;
+  return false;
 }
 }  // namespace funcexp

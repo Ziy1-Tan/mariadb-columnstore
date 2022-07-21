@@ -1,5 +1,4 @@
 #include <string_view>
-#include <memory>
 using namespace std;
 
 #include "functor_json.h"
@@ -32,18 +31,24 @@ string Func_json_object::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
   if (fp.size() == 0)
     return "{}";
 
+  const CHARSET_INFO* retCS = type.getCharset();
   string ret("{");
 
-  ret.append(getJsonKeyName(row, fp[0]));
-  ret.append(getJsonValue(row, fp[1]));
+  if (appendJSKeyName(ret, retCS, row, fp[0]) || appendJSValue(ret, retCS, row, fp[1]))
+    goto error;
 
   for (size_t i = 2; i < fp.size(); i += 2)
   {
     ret.append(", ");
-    ret.append(getJsonKeyName(row, fp[i]));
-    ret.append(getJsonValue(row, fp[i + 1]));
+    if (appendJSKeyName(ret, retCS, row, fp[i]) || appendJSValue(ret, retCS, row, fp[i + 1]))
+      goto error;
   }
+
   ret.append("}");
   return ret;
+
+error:
+  isNull = true;
+  return "";
 }
 }  // namespace funcexp

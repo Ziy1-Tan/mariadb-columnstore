@@ -4044,23 +4044,20 @@ ReturnedColumn* buildFunctionColumn(Item_func* ifp, gp_walk_info& gwi, bool& non
 
         ReturnedColumn* rc = NULL;
 
-        // json_array(true, false) should return [true, false] instead of [1, 0]
-        // json_object(1, true) should return {"1": true} instead of {"1": 1}
-        bool isJSOpFunc =
-            ((funcName == "json_insert" || funcName == "json_replace" || funcName == "json_set") &&
-             (i != 0) && (i % 2 == 0));
-        bool isJSArrFunc = (funcName == "json_array");
-        bool isJSArrOpFunc = ((funcName == "json_array_append" || funcName == "json_array_insert") &&
-                              (i != 0) && (i % 2 == 0));
-        bool isJSObjFunc = ((funcName == "json_object") && (i % 2 == 1));
-        bool isJSBoolVal =
+
+        // Special treatment for json functions
+        // All boolean arguments will be parsed as boolean string true(false)
+        // E.g. the result of `SELECT JSON_ARRAY(true, false)` should be [true, false] instead of [1, 0]
+        bool mayHasBoolArg = ((funcName == "json_insert" || funcName == "json_replace" ||
+                              funcName == "json_set" || funcName == "json_array_append" ||
+                              funcName == "json_array_insert") && i != 0 && i % 2 == 0) ||
+                             (funcName == "json_array") ||
+                             (funcName == "json_object" && i % 2 == 1);
+        bool isBoolType =
             (ifp->arguments()[i]->const_item() && ifp->arguments()[i]->type_handler()->is_bool_type());
 
-        if ((isJSOpFunc || isJSArrFunc || isJSArrOpFunc || isJSObjFunc) && isJSBoolVal)
-        {
+        if (mayHasBoolArg && isBoolType)
           rc = buildBooleanConstantColumn(ifp->arguments()[i], gwi, nonSupport);
-        }
-
         else
           rc = buildReturnedColumn(ifp->arguments()[i], gwi, nonSupport);
 
@@ -5823,10 +5820,7 @@ void gp_walk(const Item* item, void* arg)
 
         // bug 3137. If filter constant like 1=0, put it to ptWorkStack
         // MariaDB bug 750. Breaks if compare is an argument to a function.
-        //				if ((int32_t)gwip->rcWorkStack.size() <=
-        //(gwip->rcBookMarkStack.empty()
-        //?
-        // 0
+        //				if ((int32_t)gwip->rcWorkStack.size() <=  (gwip->rcBookMarkStack.empty() ? 0
         //: gwip->rcBookMarkStack.top())
         //				&& isPredicateFunction(ifp, gwip))
         if (isPredicateFunction(ifp, gwip))
@@ -6098,13 +6092,12 @@ void gp_walk(const Item* item, void* arg)
           if (operand)
           {
             gwip->rcWorkStack.push(operand);
-            if (i == 0 && gwip->scsp == NULL)  // first item is the WHEN LHS
+            if (i == 0 && gwip->scsp == NULL) // first item is the WHEN LHS
             {
               SimpleColumn* sc = dynamic_cast<SimpleColumn*>(operand);
               if (sc)
               {
-                gwip->scsp.reset(sc->clone());  // We need to clone else sc gets double deleted. This code is
-                                                // rarely executed so the cost is acceptable.
+                gwip->scsp.reset(sc->clone());  // We need to clone else sc gets double deleted. This code is rarely executed so the cost is acceptable.
               }
             }
           }

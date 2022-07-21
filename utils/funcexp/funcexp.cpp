@@ -162,10 +162,14 @@ FuncExp::FuncExp()
   fFuncMap["json_merge_preserve"] = new Func_json_merge();
   fFuncMap["json_normalize"] = new Func_json_normalize();
   fFuncMap["json_object"] = new Func_json_object();
+#ifdef MYSQL_GE_1009
+  fFuncMap["json_overlaps"] = new Func_json_overlaps();
+#endif
   fFuncMap["json_query"] = new Func_json_query();
   fFuncMap["json_quote"] = new Func_json_quote();
   fFuncMap["json_remove"] = new Func_json_remove();
   fFuncMap["json_replace"] = new Func_json_insert(Func_json_insert::REPLACE);
+  // TODO: fFuncMap["json_search"] = new Func_json_search();
   fFuncMap["json_set"] = new Func_json_insert(Func_json_insert::SET);
   fFuncMap["json_type"] = new Func_json_type();
   fFuncMap["json_unquote"] = new Func_json_unquote();

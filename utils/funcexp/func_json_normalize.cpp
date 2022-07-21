@@ -22,26 +22,23 @@ CalpontSystemCatalog::ColType Func_json_normalize::operationType(FunctionParm& f
 string Func_json_normalize::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                       execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
+  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
   using DynamicString = unique_ptr<DYNAMIC_STRING, decltype(&dynstr_free)>;
 
-  DYNAMIC_STRING tmpString;
-  if (init_dynamic_string(&tmpString, NULL, 0, 0))
-  {
-    isNull = true;
-    return "";
-  }
-  DynamicString dynamicString{&tmpString, dynstr_free};
+  DynamicString dynStr{new DYNAMIC_STRING(), dynstr_free};
+  if (init_dynamic_string(&*dynStr, NULL, 0, 0))
+    goto error;
 
-  if (json_normalize(&*dynamicString, tmpJs.data(), tmpJs.size(), fp[0]->data()->resultType().getCharset()))
-  {
-    isNull = true;
-    return "";
-  }
+  if (json_normalize(&*dynStr, jsExp.data(), jsExp.size(), fp[0]->data()->resultType().getCharset()))
+    goto error;
 
-  return dynamicString->str;
+  return dynStr->str;
+
+error:
+  isNull = true;
+  return "";
 }
 }  // namespace funcexp

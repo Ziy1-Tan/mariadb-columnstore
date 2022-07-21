@@ -1,6 +1,3 @@
-#include <string_view>
-using namespace std;
-
 #include "functor_json.h"
 #include "functioncolumn.h"
 #include "constantcolumn.h"
@@ -9,6 +6,9 @@ using namespace execplan;
 using namespace rowgroup;
 
 #include "dataconvert.h"
+
+#include "jsonhelpers.h"
+using namespace funcexp::helpers;
 
 namespace funcexp
 {
@@ -24,49 +24,43 @@ CalpontSystemCatalog::ColType Func_json_exists::operationType(FunctionParm& fp,
 bool Func_json_exists::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
                                   CalpontSystemCatalog::ColType& type)
 {
-  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
+  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return false;
 
-  json_engine_t je;
-  int arrayCounters[JSON_DEPTH_LIMIT];
+  json_engine_t jsEg;
 
   if (!path.parsed)
   {
     // check if path column is const
     if (!path.constant)
-    {
-      ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[1]->data());
-      path.set_constant_flag((constCol != nullptr));
-    }
+      markConstFlag(path, fp[1]);
 
-    const string_view tmpPath = fp[1]->data()->getStrVal(row, isNull);
-    if (isNull)
-      return false;
+    const string_view pathExp = fp[1]->data()->getStrVal(row, isNull);
+    const char* rawPath = pathExp.data();
+    if (isNull || json_path_setup(&path.p, fp[1]->data()->resultType().getCharset(), (const uchar*)rawPath,
+                                  (const uchar*)rawPath + pathExp.size()))
+      goto error;
 
-    if (json_path_setup(&path.p, fp[1]->data()->resultType().getCharset(), (const uchar*)tmpPath.data(),
-                        (const uchar*)tmpPath.data() + tmpPath.size()))
-    {
-      isNull = true;
-      return false;
-    }
     path.parsed = path.constant;
   }
 
-  json_scan_start(&je, fp[0]->data()->resultType().getCharset(), (const uchar*)tmpJs.data(),
-                  (const uchar*)tmpJs.data() + tmpJs.size());
+  json_scan_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)jsExp.data(),
+                  (const uchar*)jsExp.data() + jsExp.size());
 
-  path.cur_step = path.p.steps;
-  if (json_find_path(&je, &path.p, &path.cur_step, arrayCounters))
+  path.currStep = path.p.steps;
+  if (jsonFindPath(&jsEg, &path.p, &path.currStep))
   {
-    if (je.s.error)
-    {
-      isNull = true;
-      return false;
-    }
+    if (jsEg.s.error)
+      goto error;
+
     return false;
   }
 
   return true;
+
+error:
+  isNull = true;
+  return false;
 }
 }  // namespace funcexp

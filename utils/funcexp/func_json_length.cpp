@@ -1,6 +1,3 @@
-#include <string_view>
-using namespace std;
-
 #include "functor_json.h"
 #include "functioncolumn.h"
 #include "constantcolumn.h"
@@ -26,19 +23,18 @@ CalpontSystemCatalog::ColType Func_json_length::operationType(FunctionParm& fp,
 int64_t Func_json_length::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                     execplan::CalpontSystemCatalog::ColType& op_ct)
 {
-  const string_view tmpJs = fp[0]->data()->getStrVal(row, isNull);
+  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return 0;
 
-  json_engine_t je;
+  json_engine_t jsEg;
   int length = 0;
-  int arrayCounters[JSON_DEPTH_LIMIT];
   int err;
 
-  const char* js = tmpJs.data();
+  const char* js = jsExp.data();
 
-  json_scan_start(&je, fp[0]->data()->resultType().getCharset(), (const uchar*)js,
-                  (const uchar*)js + tmpJs.size());
+  json_scan_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)js,
+                  (const uchar*)js + jsExp.size());
 
   if (fp.size() > 1)
   {
@@ -46,58 +42,43 @@ int64_t Func_json_length::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& 
     {
       // check if path column is const and cache it
       if (!path.constant)
-      {
-        ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[1]->data());
-        path.set_constant_flag((constCol != nullptr));
-      }
+        markConstFlag(path, fp[1]);
 
-      const string_view tmpPath = fp[1]->data()->getStrVal(row, isNull);
-      if (isNull)
-        return 0;
+      const string_view pathExp = fp[1]->data()->getStrVal(row, isNull);
+      const char* rawPath = pathExp.data();
+      if (isNull || pathSetupNwc(&path.p, fp[1]->data()->resultType().getCharset(), (const uchar*)rawPath,
+                                 (const uchar*)rawPath + pathExp.size()))
+        goto error;
 
-      if (setupPathNoWildcard(&path.p, fp[1]->data()->resultType().getCharset(), (const uchar*)tmpPath.data(),
-                              (const uchar*)tmpPath.data() + tmpPath.size()))
-      {
-        isNull = true;
-        return 0;
-      }
-      
       path.parsed = path.constant;
     }
 
-    path.cur_step = path.p.steps;
-    if (json_find_path(&je, &path.p, &path.cur_step, arrayCounters))
+    path.currStep = path.p.steps;
+    if (jsonFindPath(&jsEg, &path.p, &path.currStep))
     {
-      if (je.s.error)
+      if (jsEg.s.error)
       {
       }
-      isNull = true;
-      return 0;
+      goto error;
     }
   }
 
-  if (json_read_value(&je))
-  {
-    isNull = true;
-    return 0;
-  }
+  if (json_read_value(&jsEg))
+    goto error;
 
-  if (json_value_scalar(&je))
+  if (json_value_scalar(&jsEg))
     return 1;
 
-  while (!(err = json_scan_next(&je)) && je.state != JST_OBJ_END && je.state != JST_ARRAY_END)
+  while (!(err = json_scan_next(&jsEg)) && jsEg.state != JST_OBJ_END && jsEg.state != JST_ARRAY_END)
   {
-    switch (je.state)
+    switch (jsEg.state)
     {
       case JST_VALUE:
       case JST_KEY: length++; break;
       case JST_OBJ_START:
       case JST_ARRAY_START:
-        if (json_skip_level(&je))
-        {
-          isNull = true;
-          return 0;
-        }
+        if (json_skip_level(&jsEg))
+          goto error;
         break;
       default: break;
     };
@@ -106,14 +87,15 @@ int64_t Func_json_length::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& 
   if (!err)
   {
     // Parse to the end of the JSON just to check it's valid.
-    while (json_scan_next(&je) == 0)
+    while (json_scan_next(&jsEg) == 0)
     {
     }
   }
 
-  if (likely(!je.s.error))
+  if (likely(!jsEg.s.error))
     return length;
 
+error:
   isNull = true;
   return 0;
 }
