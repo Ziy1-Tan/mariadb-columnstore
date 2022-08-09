@@ -136,6 +136,31 @@ j	p	result
              [19, 20],
              21, 22
             ]	$[2][2][1 to 4]	1
+
+# JSON_EXTRACT
+
+CREATE TABLE t5(j LONGTEXT, p LONGTEXT) ENGINE = COLUMNSTORE;
+INSERT INTO
+t5
+VALUES
+('[1, "val2", [3.1, -4]]', '$'),
+('1', '$'),
+('[10, 20, [30, 40]]', '$[2][*]'),
+('[10, 20, [{"a":3}, 30, 40]]', '$[2][*]'),
+(json_object('foo', 'foobar'), '$');
+SELECT
+j,
+p,
+JSON_EXTRACT(j, p) AS result
+FROM
+t5;
+j	p	result
+[1, "val2", [3.1, -4]]	$	[1, "val2", [3.1, -4]]
+1	$	1
+[10, 20, [30, 40]]	$[2][*]	[30, 40]
+[10, 20, [{"a":3}, 30, 40]]	$[2][*]	[{"a": 3}, 30, 40]
+{"foo": "foobar"}	$	{"foo": "foobar"}
+DROP TABLE t5;
 DROP TABLE t4;
 DROP TABLE t3;
 DROP TABLE t2;

@@ -92,6 +92,29 @@ SELECT
 FROM
     t4;
 
+--echo 
+--echo # JSON_EXTRACT
+--echo 
+CREATE TABLE t5(j LONGTEXT, p LONGTEXT) ENGINE = COLUMNSTORE;
+
+INSERT INTO
+    t5
+VALUES
+    ('[1, "val2", [3.1, -4]]', '$'),
+    ('1', '$'),
+    ('[10, 20, [30, 40]]', '$[2][*]'),
+    ('[10, 20, [{"a":3}, 30, 40]]', '$[2][*]'),
+    (json_object('foo', 'foobar'), '$');
+
+SELECT
+    j,
+    p,
+    JSON_EXTRACT(j, p) AS result
+FROM
+    t5;
+
+DROP TABLE t5;
+
 DROP TABLE t4;
 
 DROP TABLE t3;

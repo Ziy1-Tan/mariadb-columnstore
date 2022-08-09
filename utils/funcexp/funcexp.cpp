@@ -152,6 +152,7 @@ FuncExp::FuncExp()
   fFuncMap["json_depth"] = new Func_json_depth();
   fFuncMap["json_equals"] = new Func_json_equals();
   fFuncMap["json_exists"] = new Func_json_exists();
+  fFuncMap["json_extract"] = new Func_json_extract();
   fFuncMap["json_format"] = new Func_json_format();
   fFuncMap["json_insert"] = new Func_json_insert();
   fFuncMap["json_keys"] = new Func_json_keys();

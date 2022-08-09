@@ -636,4 +636,38 @@ class Func_json_search : public Func_Str
   std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                         execplan::CalpontSystemCatalog::ColType& type);
 };
+/** @brief Func_json_extract_string class
+ */
+class Func_json_extract : public Func_Str
+{
+ protected:
+  std::vector<JsonPath> paths;
+
+ public:
+  Func_json_extract() : Func_Str("json_extract")
+  {
+  }
+  virtual ~Func_json_extract()
+  {
+  }
+
+  execplan::CalpontSystemCatalog::ColType operationType(FunctionParm& fp,
+                                                        execplan::CalpontSystemCatalog::ColType& resultType);
+
+  std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                        execplan::CalpontSystemCatalog::ColType& type);
+
+  int64_t getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                    execplan::CalpontSystemCatalog::ColType& type);
+
+  double getDoubleVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                      execplan::CalpontSystemCatalog::ColType& type);
+
+  execplan::IDB_Decimal getDecimalVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
+                                      execplan::CalpontSystemCatalog::ColType& type);
+
+ private:
+  int doExtract(rowgroup::Row& row, FunctionParm& fp, json_value_types* type, std::string& retJS,
+                bool compareWhole);
+};
 }  // namespace funcexp

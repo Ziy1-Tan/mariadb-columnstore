@@ -65,6 +65,7 @@ set(funcexp_LIB_SRCS
     func_json_depth.cpp
     func_json_equals.cpp
     func_json_exists.cpp
+    func_json_extract.cpp
     func_json_format.cpp
     func_json_insert.cpp
     func_json_keys.cpp
