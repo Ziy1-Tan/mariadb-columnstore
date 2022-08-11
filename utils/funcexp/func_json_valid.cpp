@@ -9,6 +9,8 @@ using namespace rowgroup;
 
 #include "dataconvert.h"
 
+#include "jsonhelpers.h"
+using namespace funcexp::helpers;
 namespace funcexp
 {
 CalpontSystemCatalog::ColType Func_json_valid::operationType(FunctionParm& fp,
@@ -23,11 +25,10 @@ CalpontSystemCatalog::ColType Func_json_valid::operationType(FunctionParm& fp,
 bool Func_json_valid::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
                                  CalpontSystemCatalog::ColType& type)
 {
-  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
-
+  const string_view js = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return false;
 
-  return json_valid(jsExp.data(), jsExp.size(), fp[0]->data()->resultType().getCharset());
+  return json_valid(js.data(), js.size(), getCharset(fp[0]));
 }
 }  // namespace funcexp

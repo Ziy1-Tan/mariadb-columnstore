@@ -8,6 +8,9 @@ using namespace rowgroup;
 #include "joblisttypes.h"
 using namespace joblist;
 
+#include "jsonhelpers.h"
+using namespace funcexp::helpers;
+
 namespace funcexp
 {
 CalpontSystemCatalog::ColType Func_json_type::operationType(FunctionParm& fp,
@@ -19,15 +22,14 @@ CalpontSystemCatalog::ColType Func_json_type::operationType(FunctionParm& fp,
 string Func_json_type::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                  execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
+  const string_view js = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
   json_engine_t jsEg;
   string result;
 
-  json_scan_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)jsExp.data(),
-                  (const uchar*)jsExp.data() + jsExp.size());
+  initJSEngine(jsEg, getCharset(fp[0]), js);
 
   if (json_read_value(&jsEg))
   {

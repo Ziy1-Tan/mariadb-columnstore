@@ -22,10 +22,10 @@
 namespace funcexp
 {
 // The json_path_t wrapper include some flags
-struct JsonPath
+struct JSONPath
 {
  public:
-  JsonPath() : constant(false), parsed(false), currStep(nullptr)
+  JSONPath() : constant(false), parsed(false), currStep(nullptr)
   {
   }
   json_path_t p;
@@ -34,28 +34,28 @@ struct JsonPath
   json_path_step_t* currStep;
 };
 
-class JSEngineScanner : public json_engine_t
+class JSONEgWrapper : public json_engine_t
 {
  public:
-  JSEngineScanner(CHARSET_INFO* cs, const uchar* str, const uchar* end)
+  JSONEgWrapper(CHARSET_INFO* cs, const uchar* str, const uchar* end)
   {
     json_scan_start(this, cs, str, end);
   }
-  JSEngineScanner(const std::string& str, CHARSET_INFO* cs)
-   : JSEngineScanner(cs, (const uchar*)str.data(), (const uchar*)str.data() + str.size())
+  JSONEgWrapper(const std::string& str, CHARSET_INFO* cs)
+   : JSONEgWrapper(cs, (const uchar*)str.data(), (const uchar*)str.data() + str.size())
   {
   }
   bool checkAndGetScalar(std::string& ret, int* error);
   bool checkAndGetComplexVal(std::string& ret, int* error);
 };
 
-class JSPathExtractor : public JsonPath
+class JSONPathWrapper : public JSONPath
 {
  protected:
-  virtual ~JSPathExtractor()
+  virtual ~JSONPathWrapper()
   {
   }
-  virtual bool checkAndGetValue(JSEngineScanner* je, std::string& ret, int* error) = 0;
+  virtual bool checkAndGetValue(JSONEgWrapper* je, std::string& ret, int* error) = 0;
   bool extract(std::string& ret, rowgroup::Row& row, execplan::SPTP& funcParmJS,
                execplan::SPTP& funcParmPath);
 };
@@ -102,7 +102,7 @@ class Func_json_depth : public Func_Int
 class Func_json_length : public Func_Int
 {
  protected:
-  JsonPath path;
+  JSONPath path;
 
  public:
   Func_json_length() : Func_Int("json_length")
@@ -218,7 +218,7 @@ class Func_json_array : public Func_Str
 class Func_json_keys : public Func_Str
 {
  protected:
-  JsonPath path;
+  JSONPath path;
 
  public:
   Func_json_keys() : Func_Str("json_keys")
@@ -239,7 +239,7 @@ class Func_json_keys : public Func_Str
 class Func_json_exists : public Func_Bool
 {
  protected:
-  JsonPath path;
+  JSONPath path;
 
  public:
   Func_json_exists() : Func_Bool("json_exists")
@@ -261,7 +261,7 @@ class Func_json_exists : public Func_Bool
 class Func_json_quote : public Func_Str
 {
  protected:
-  JsonPath path;
+  JSONPath path;
 
  public:
   Func_json_quote() : Func_Str("json_quote")
@@ -283,7 +283,7 @@ class Func_json_quote : public Func_Str
 class Func_json_unquote : public Func_Str
 {
  protected:
-  JsonPath path;
+  JSONPath path;
 
  public:
   Func_json_unquote() : Func_Str("json_unquote")
@@ -381,7 +381,7 @@ class Func_json_merge_patch : public Func_Str
 
 /** @brief Func_json_value class
  */
-class Func_json_value : public Func_Str, public JSPathExtractor
+class Func_json_value : public Func_Str, public JSONPathWrapper
 {
  public:
   Func_json_value() : Func_Str("json_value")
@@ -391,7 +391,7 @@ class Func_json_value : public Func_Str, public JSPathExtractor
   {
   }
 
-  bool checkAndGetValue(JSEngineScanner* je, string& res, int* error) override
+  bool checkAndGetValue(JSONEgWrapper* je, string& res, int* error) override
   {
     return je->checkAndGetScalar(res, error);
   }
@@ -405,7 +405,7 @@ class Func_json_value : public Func_Str, public JSPathExtractor
 
 /** @brief Func_json_query class
  */
-class Func_json_query : public Func_Str, public JSPathExtractor
+class Func_json_query : public Func_Str, public JSONPathWrapper
 {
  public:
   Func_json_query() : Func_Str("json_query")
@@ -415,7 +415,7 @@ class Func_json_query : public Func_Str, public JSPathExtractor
   {
   }
 
-  bool checkAndGetValue(JSEngineScanner* je, string& res, int* error) override
+  bool checkAndGetValue(JSONEgWrapper* je, string& res, int* error) override
   {
     return je->checkAndGetComplexVal(res, error);
   }
@@ -431,7 +431,7 @@ class Func_json_query : public Func_Str, public JSPathExtractor
 class Func_json_contains : public Func_Bool
 {
  protected:
-  JsonPath path;
+  JSONPath path;
   bool arg2Const;
   bool arg2Parsed;  // argument 2 is a constant or has been parsed
   std::string_view arg2Val;
@@ -455,7 +455,7 @@ class Func_json_contains : public Func_Bool
 class Func_json_array_append : public Func_Str
 {
  protected:
-  std::vector<JsonPath> paths;
+  std::vector<JSONPath> paths;
 
  public:
   Func_json_array_append() : Func_Str("json_array_append")
@@ -470,13 +470,16 @@ class Func_json_array_append : public Func_Str
 
   std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                         execplan::CalpontSystemCatalog::ColType& type);
+
+ private:
+  static const int padding = 8;
 };
 /** @brief Func_json_array_insert class
  */
 class Func_json_array_insert : public Func_Str
 {
  protected:
-  std::vector<JsonPath> paths;
+  std::vector<JSONPath> paths;
 
  public:
   Func_json_array_insert() : Func_Str("json_array_insert")
@@ -508,7 +511,7 @@ class Func_json_insert : public Func_Str
 
  protected:
   MODE mode;
-  std::vector<JsonPath> paths;
+  std::vector<JSONPath> paths;
 
  public:
   Func_json_insert() : Func_Str("json_insert"), mode(INSERT)
@@ -545,7 +548,7 @@ class Func_json_insert : public Func_Str
 class Func_json_remove : public Func_Str
 {
  protected:
-  std::vector<JsonPath> paths;
+  std::vector<JSONPath> paths;
 
  public:
   Func_json_remove() : Func_Str("json_remove")
@@ -567,7 +570,7 @@ class Func_json_remove : public Func_Str
 class Func_json_contains_path : public Func_Bool
 {
  protected:
-  std::vector<JsonPath> paths;
+  std::vector<JSONPath> paths;
   std::vector<bool> hasFound;
   bool isModeOne;
   bool isModeConst;
@@ -594,7 +597,7 @@ class Func_json_contains_path : public Func_Bool
 class Func_json_overlaps : public Func_Bool
 {
  protected:
-  JsonPath path;
+  JSONPath path;
 
  public:
   Func_json_overlaps() : Func_Bool("json_overlaps")
@@ -615,15 +618,15 @@ class Func_json_overlaps : public Func_Bool
 class Func_json_search : public Func_Str
 {
  protected:
-  std::vector<JsonPath> paths;
+  std::vector<JSONPath> paths;
   bool isModeParsed;
   bool isModeConst;
   bool isModeOne;
-  int escapeStr;
+  int escape;
 
  public:
   Func_json_search()
-   : Func_Str("json_search"), isModeParsed(false), isModeConst(false), isModeOne(false), escapeStr('\\')
+   : Func_Str("json_search"), isModeParsed(false), isModeConst(false), isModeOne(false), escape('\\')
   {
   }
   virtual ~Func_json_search()
@@ -635,13 +638,16 @@ class Func_json_search : public Func_Str
 
   std::string getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                         execplan::CalpontSystemCatalog::ColType& type);
+
+ private:
+  int cmpJSValWild(json_engine_t* jsEg, const string_view& cmpStr, const CHARSET_INFO* cs);
 };
 /** @brief Func_json_extract_string class
  */
 class Func_json_extract : public Func_Str
 {
  protected:
-  std::vector<JsonPath> paths;
+  std::vector<JSONPath> paths;
 
  public:
   Func_json_extract() : Func_Str("json_extract")

@@ -4,7 +4,7 @@ USE json_array_db;
 # ----------------------------------------------------------------------
 # Test of JSON_ARRAY function.
 # ----------------------------------------------------------------------
-CREATE TABLE t1(l text) ENGINE = columnstore;
+CREATE TABLE t1(l text) ENGINE = COLUMNSTORE;
 INSERT INTO t1 VALUES('1');
 SELECT JSON_ARRAY() FROM t1;
 JSON_ARRAY()

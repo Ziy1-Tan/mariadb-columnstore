@@ -14,7 +14,7 @@ using namespace funcexp::helpers;
 
 namespace funcexp
 {
-bool JSEngineScanner::checkAndGetScalar(string& ret, int* error)
+bool JSONEgWrapper::checkAndGetScalar(string& ret, int* error)
 {
   CHARSET_INFO* cs;
   const uchar* js;
@@ -58,13 +58,13 @@ bool JSEngineScanner::checkAndGetScalar(string& ret, int* error)
   Returns NULL, not an error if the found value
   is not a scalar.
 */
-bool JSPathExtractor::extract(std::string& ret, rowgroup::Row& row, execplan::SPTP& funcParamJs,
+bool JSONPathWrapper::extract(std::string& ret, rowgroup::Row& row, execplan::SPTP& funcParamJS,
                               execplan::SPTP& funcParamPath)
 {
   bool isNullJS = false, isNullPath = false;
 
-  const string& jsExp = funcParamJs->data()->getStrVal(row, isNullJS);
-  const string_view pathExp = funcParamPath->data()->getStrVal(row, isNullPath);
+  const string& js = funcParamJS->data()->getStrVal(row, isNullJS);
+  const string_view jsp = funcParamPath->data()->getStrVal(row, isNullPath);
   if (isNullJS || isNullPath)
     return true;
 
@@ -78,16 +78,14 @@ bool JSPathExtractor::extract(std::string& ret, rowgroup::Row& row, execplan::SP
       constant = (constCol != nullptr);
     }
 
-    if (isNullPath ||
-        json_path_setup(&p, funcParamPath->data()->resultType().getCharset(), (const uchar*)pathExp.data(),
-                        (const uchar*)pathExp.data() + pathExp.size()))
+    if (isNullPath || json_path_setup(&p, getCharset(funcParamPath), (const uchar*)jsp.data(),
+                                      (const uchar*)jsp.data() + jsp.size()))
       return true;
 
     parsed = constant;
   }
 
-  const CHARSET_INFO* cs = funcParamJs->data()->resultType().getCharset();
-  JSEngineScanner je(jsExp, cs);
+  JSONEgWrapper je(js, getCharset(funcParamJS));
 
   currStep = p.steps;
 
@@ -96,7 +94,8 @@ bool JSPathExtractor::extract(std::string& ret, rowgroup::Row& row, execplan::SP
     if (error)
       return true;
 
-    if (jsonFindPath(&je, &p, &currStep))
+    IntType arrayCounters[JSON_DEPTH_LIMIT];
+    if (json_find_path(&je, &p, &currStep, arrayCounters))
       return true;
 
     if (json_read_value(&je))
@@ -117,7 +116,7 @@ string Func_json_value::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& is
                                   execplan::CalpontSystemCatalog::ColType& type)
 {
   string ret;
-  isNull = JSPathExtractor::extract(ret, row, fp[0], fp[1]);
+  isNull = JSONPathWrapper::extract(ret, row, fp[0], fp[1]);
   return isNull ? "" : ret;
 }
 }  // namespace funcexp

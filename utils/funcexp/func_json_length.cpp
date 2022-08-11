@@ -23,7 +23,7 @@ CalpontSystemCatalog::ColType Func_json_length::operationType(FunctionParm& fp,
 int64_t Func_json_length::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                     execplan::CalpontSystemCatalog::ColType& op_ct)
 {
-  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
+  const string_view js = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return 0;
 
@@ -31,36 +31,15 @@ int64_t Func_json_length::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool& 
   int length = 0;
   int err;
 
-  const char* js = jsExp.data();
-
-  json_scan_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)js,
-                  (const uchar*)js + jsExp.size());
+  initJSEngine(jsEg, getCharset(fp[0]), js);
 
   if (fp.size() > 1)
   {
-    if (!path.parsed)
-    {
-      // check if path column is const and cache it
-      if (!path.constant)
-        markConstFlag(path, fp[1]);
-
-      const string_view pathExp = fp[1]->data()->getStrVal(row, isNull);
-      const char* rawPath = pathExp.data();
-      if (isNull || pathSetupNwc(&path.p, fp[1]->data()->resultType().getCharset(), (const uchar*)rawPath,
-                                 (const uchar*)rawPath + pathExp.size()))
-        goto error;
-
-      path.parsed = path.constant;
-    }
-
-    path.currStep = path.p.steps;
-    if (jsonFindPath(&jsEg, &path.p, &path.currStep))
-    {
-      if (jsEg.s.error)
-      {
-      }
+    if (!path.parsed && parseJSPath(path, row, fp[1], false))
       goto error;
-    }
+
+    if (locateJSPath(jsEg, path))
+      goto error;
   }
 
   if (json_read_value(&jsEg))

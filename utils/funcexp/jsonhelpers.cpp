@@ -5,31 +5,33 @@ namespace funcexp
 {
 namespace helpers
 {
-int pathSetupNwc(json_path_t* path, CHARSET_INFO* cs, const uchar* str, const uchar* end)
+int setupJSPath(json_path_t* path, CHARSET_INFO* cs, const string_view& str, bool wildcards = true)
 {
-  if (!json_path_setup(path, cs, str, end))
+  int err = json_path_setup(path, cs, (const uchar*)str.data(), (const uchar*)str.data() + str.size());
+  if (wildcards)
+    return err;
+
+  if (!err)
   {
 #ifdef MYSQL_GE_1009
-    if ((path->types_used & (JSON_PATH_WILD | JSON_PATH_DOUBLE_WILD | JSON_PATH_ARRAY_RANGE)) == 0)
+    bool support = (path->types_used & (JSON_PATH_WILD | JSON_PATH_DOUBLE_WILD | JSON_PATH_ARRAY_RANGE)) == 0;
 #else
-    if ((path->types_used & (JSON_PATH_WILD | JSON_PATH_DOUBLE_WILD)) == 0)
+    bool support = (path->types_used & (JSON_PATH_WILD | JSON_PATH_DOUBLE_WILD)) == 0;
 #endif
-    {
+    if (support)
       return 0;
-    }
     path->s.error = NO_WILDCARD_ALLOWED;
   }
   return 1;
 }
 
-bool appendEscapedJS(string& ret, const CHARSET_INFO* retCS, const string_view& jsExp,
-                     const CHARSET_INFO* jsCS)
+bool appendEscapedJS(string& ret, const CHARSET_INFO* retCS, const string_view& js, const CHARSET_INFO* jsCS)
 {
-  const int jsLen = jsExp.size();
-  const char* js = jsExp.data();
+  const int jsLen = js.size();
+  const char* rawJS = js.data();
   int strLen = jsLen * 12 * jsCS->mbmaxlen / jsCS->mbminlen;
   char* buf = (char*)alloca(strLen);
-  if ((strLen = json_escape(retCS, (const uchar*)js, (const uchar*)js + jsLen, jsCS, (uchar*)buf,
+  if ((strLen = json_escape(retCS, (const uchar*)rawJS, (const uchar*)rawJS + jsLen, jsCS, (uchar*)buf,
                             (uchar*)buf + strLen)) > 0)
   {
     buf[strLen] = '\0';
@@ -43,7 +45,7 @@ bool appendEscapedJS(string& ret, const CHARSET_INFO* retCS, const string_view& 
 bool appendJSKeyName(string& ret, const CHARSET_INFO* retCS, rowgroup::Row& row, execplan::SPTP& parm)
 {
   bool nullVal = false;
-  const string_view jsExp = parm->data()->getStrVal(row, nullVal);
+  const string_view js = parm->data()->getStrVal(row, nullVal);
   if (nullVal)
   {
     ret.append("\"\": ");
@@ -51,7 +53,7 @@ bool appendJSKeyName(string& ret, const CHARSET_INFO* retCS, rowgroup::Row& row,
   }
 
   ret.append("\"");
-  if (appendEscapedJS(ret, retCS, jsExp, parm->data()->resultType().getCharset()))
+  if (appendEscapedJS(ret, retCS, js, parm->data()->resultType().getCharset()))
     return true;
   ret.append("\": ");
   return false;
@@ -60,7 +62,7 @@ bool appendJSKeyName(string& ret, const CHARSET_INFO* retCS, rowgroup::Row& row,
 bool appendJSValue(string& ret, const CHARSET_INFO* retCS, rowgroup::Row& row, execplan::SPTP& parm)
 {
   bool nullVal = false;
-  const string_view jsExp = parm->data()->getStrVal(row, nullVal);
+  const string_view js = parm->data()->getStrVal(row, nullVal);
   if (nullVal)
   {
     ret.append("null");
@@ -68,9 +70,9 @@ bool appendJSValue(string& ret, const CHARSET_INFO* retCS, rowgroup::Row& row, e
   }
 
   datatypes::SystemCatalog::ColDataType dataType = parm->data()->resultType().colDataType;
-  if (dataType == datatypes::SystemCatalog::BIGINT && (jsExp == "true" || jsExp == "false"))
+  if (dataType == datatypes::SystemCatalog::BIGINT && (js == "true" || js == "false"))
   {
-    ret.append(jsExp);
+    ret.append(js);
     return false;
   }
 
@@ -78,13 +80,13 @@ bool appendJSValue(string& ret, const CHARSET_INFO* retCS, rowgroup::Row& row, e
   if (isCharType(dataType))
   {
     ret.append("\"");
-    if (appendEscapedJS(ret, retCS, jsExp, jsCS))
+    if (appendEscapedJS(ret, retCS, js, jsCS))
       return true;
     ret.append("\"");
     return false;
   }
 
-  return appendEscapedJS(ret, retCS, jsExp, jsCS);
+  return appendEscapedJS(ret, retCS, js, jsCS);
 }
 
 int appendTab(string& js, const int depth, const int tabSize)
@@ -225,8 +227,8 @@ bool findKeyInObject(json_engine_t* jsEg, json_string_t* key)
   return false;
 }
 
-int jsonPathPartsCompare(const json_path_step_t* a, const json_path_step_t* aEnd, const json_path_step_t* b,
-                         const json_path_step_t* bEnd, enum json_value_types vt, const int* arraySize)
+int cmpPartJSPath(const json_path_step_t* a, const json_path_step_t* aEnd, const json_path_step_t* b,
+                  const json_path_step_t* bEnd, enum json_value_types vt, const int* arraySize)
 {
   int ret, ret2;
   const json_path_step_t* tmpB = b;
@@ -302,11 +304,11 @@ int jsonPathPartsCompare(const json_path_step_t* a, const json_path_step_t* aEnd
     }
 
     /* Double wild handling needs recursions. */
-    ret = jsonPathPartsCompare(a + 1, aEnd, b, bEnd, vt, arraySize ? arraySize + (b - tmpB) : NULL);
+    ret = cmpPartJSPath(a + 1, aEnd, b, bEnd, vt, arraySize ? arraySize + (b - tmpB) : NULL);
     if (ret == 0)
       return 0;
 
-    ret2 = jsonPathPartsCompare(a, aEnd, b, bEnd, vt, arraySize ? arraySize + (b - tmpB) : NULL);
+    ret2 = cmpPartJSPath(a, aEnd, b, bEnd, vt, arraySize ? arraySize + (b - tmpB) : NULL);
 
     return (ret2 >= 0) ? ret2 : ret;
 
@@ -318,11 +320,11 @@ int jsonPathPartsCompare(const json_path_step_t* a, const json_path_step_t* aEnd
     }
 
     /* Double wild handling needs recursions. */
-    ret = jsonPathPartsCompare(a + 1, aEnd, b + 1, bEnd, vt, arraySize ? arraySize + (b - tmpB) : NULL);
+    ret = cmpPartJSPath(a + 1, aEnd, b + 1, bEnd, vt, arraySize ? arraySize + (b - tmpB) : NULL);
     if (ret == 0)
       return 0;
 
-    ret2 = jsonPathPartsCompare(a, aEnd, b + 1, bEnd, vt, arraySize ? arraySize + (b - tmpB) : NULL);
+    ret2 = cmpPartJSPath(a, aEnd, b + 1, bEnd, vt, arraySize ? arraySize + (b - tmpB) : NULL);
 
     return (ret2 >= 0) ? ret2 : ret;
   }
@@ -330,10 +332,43 @@ int jsonPathPartsCompare(const json_path_step_t* a, const json_path_step_t* aEnd
   return b <= bEnd;
 }
 
-int jsonPathCompare(const json_path_t* a, const json_path_t* b, enum json_value_types vt,
-                    const int* arraySize)
+int cmpJSPath(const json_path_t* a, const json_path_t* b, enum json_value_types vt, const int* arraySize)
 {
-  return jsonPathPartsCompare(a->steps + 1, a->last_step, b->steps + 1, b->last_step, vt, arraySize);
+  return cmpPartJSPath(a->steps + 1, a->last_step, b->steps + 1, b->last_step, vt, arraySize);
+}
+
+int parseJSPath(JSONPath& path, rowgroup::Row& row, execplan::SPTP& parm, bool wildcards)
+{
+  // check if path column is const
+  if (!path.constant)
+    markConstFlag(path, parm);
+
+  bool isNull = false;
+  const string_view jsp = parm->data()->getStrVal(row, isNull);
+
+  if (isNull || setupJSPath(&path.p, getCharset(parm), jsp, wildcards))
+    return 1;
+
+  path.parsed = path.constant;
+
+  return 0;
+}
+
+bool matchJSPath(const vector<funcexp::JSONPath>& paths, const json_path_t* p, json_value_types valType,
+                 const int* arrayCounter, bool exact)
+{
+  for (size_t curr = 0; curr < paths.size(); curr++)
+  {
+#ifdef MYSQL_GE_1009
+    int cmp = cmpJSPath(&paths[curr].p, p, valType, arrayCounter);
+#else
+    int cmp = cmpJSPath(&paths[curr].p, p, valType);
+#endif
+    bool ret = exact ? cmp >= 0 : cmp == 0;
+    if (ret)
+      return true;
+  }
+  return false;
 }
 }  // namespace helpers
 }  // namespace funcexp

@@ -10,7 +10,7 @@ USE json_array_append_db;
 --echo # ----------------------------------------------------------------------
 --echo # Test of JSON_ARRAY_APPEND function.
 --echo # ----------------------------------------------------------------------
-CREATE TABLE t1(a TEXT, p TEXT, v TEXT) ENGINE = columnstore;
+CREATE TABLE t1(a TEXT, p TEXT, v TEXT) ENGINE = COLUMNSTORE;
 
 INSERT INTO
     t1
@@ -51,7 +51,7 @@ FROM
     t1;
 
 --echo # NULL args
-CREATE TABLE t2(a TEXT) ENGINE = columnstore;
+CREATE TABLE t2(a TEXT) ENGINE = COLUMNSTORE;
 
 INSERT INTO
     t2

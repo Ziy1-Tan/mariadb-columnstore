@@ -25,12 +25,11 @@ CalpontSystemCatalog::ColType Func_json_format::operationType(FunctionParm& fp,
 string Func_json_format::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                    execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
+  const string_view js = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
   int tabSize = 4;
-  json_engine_t jsEg;
 
   if (fmt == DETAILED)
   {
@@ -47,9 +46,8 @@ string Func_json_format::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
     }
   }
 
-  json_scan_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)jsExp.data(),
-                  (const uchar*)jsExp.data() + jsExp.size());
-
+  json_engine_t jsEg;
+  initJSEngine(jsEg, getCharset(fp[0]), js);
   string ret;
   if (doFormat(&jsEg, ret, fmt, tabSize))
   {

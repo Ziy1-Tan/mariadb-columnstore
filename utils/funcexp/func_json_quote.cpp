@@ -28,13 +28,13 @@ CalpontSystemCatalog::ColType Func_json_quote::operationType(FunctionParm& fp,
 std::string Func_json_quote::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                        execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
+  const string_view js = fp[0]->data()->getStrVal(row, isNull);
   if (isNull || !isCharType(fp[0]->data()->resultType().colDataType))
     return "";
 
   string ret("\"");
 
-  isNull = appendEscapedJS(ret, &my_charset_utf8mb4_bin, jsExp, fp[0]->data()->resultType().getCharset());
+  isNull = appendEscapedJS(ret, &my_charset_utf8mb4_bin, js, getCharset(fp[0]));
   if (isNull)
     return "";
   ret.append("\"");

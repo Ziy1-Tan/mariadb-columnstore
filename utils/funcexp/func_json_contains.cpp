@@ -160,8 +160,8 @@ bool Func_json_contains::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
                                     CalpontSystemCatalog::ColType& type)
 {
   bool isNullJS = false, isNullVal = false;
-  const string_view jsExp = fp[0]->data()->getStrVal(row, isNullJS);
-  const string_view valExp = fp[1]->data()->getStrVal(row, isNullVal);
+  const string_view js = fp[0]->data()->getStrVal(row, isNullJS);
+  const string_view val = fp[1]->data()->getStrVal(row, isNullVal);
   if (isNullJS || isNullVal)
   {
     isNull = true;
@@ -177,44 +177,24 @@ bool Func_json_contains::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
       ConstantColumn* constCol = dynamic_cast<ConstantColumn*>(fp[1]->data());
       arg2Const = (constCol != nullptr);
     }
-    arg2Val = valExp;
+    arg2Val = val;
     arg2Parsed = arg2Const;
   }
 
   json_engine_t jsEg;
-  json_scan_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)jsExp.data(),
-                  (const uchar*)jsExp.data() + jsExp.size());
+  initJSEngine(jsEg, getCharset(fp[0]), js);
 
   if (fp.size() > 2)
   {
-    if (!path.parsed)
-    {
-      // check if path column is const
-      if (!path.constant)
-        markConstFlag(path, fp[2]);
-
-      const string_view pathExp = fp[2]->data()->getStrVal(row, isNull);
-      const char* rawPath = pathExp.data();
-      if (isNull || pathSetupNwc(&path.p, fp[2]->data()->resultType().getCharset(), (const uchar*)rawPath,
-                                 (const uchar*)rawPath + pathExp.size()))
-        goto error;
-
-      path.parsed = path.constant;
-    }
-
-    path.currStep = path.p.steps;
-    if (jsonFindPath(&jsEg, &path.p, &path.currStep))
-    {
-      if (jsEg.s.error)
-      {
-      }
+    if (!path.parsed && parseJSPath(path, row, fp[2], false))
       goto error;
-    }
+
+    if (locateJSPath(jsEg, path))
+      goto error;
   }
 
   json_engine_t valEg;
-  json_scan_start(&valEg, fp[1]->data()->resultType().getCharset(), (const uchar*)arg2Val.data(),
-                  (const uchar*)arg2Val.data() + arg2Val.size());
+  initJSEngine(valEg, getCharset(fp[1]), arg2Val);
 
   if (json_read_value(&jsEg) || json_read_value(&valEg))
     goto error;

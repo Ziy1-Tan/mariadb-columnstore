@@ -28,7 +28,7 @@ CalpontSystemCatalog::ColType Func_json_contains_path::operationType(
 bool Func_json_contains_path::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
                                          CalpontSystemCatalog::ColType& type)
 {
-  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
+  const string_view js = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return false;
 
@@ -58,43 +58,31 @@ bool Func_json_contains_path::getBoolVal(Row& row, FunctionParm& fp, bool& isNul
     isModeParsed = isModeConst;
   }
 
-  // parse path flag
+  initJSPaths(paths, fp, 2, 1);
   if (paths.size() == 0)
-  {
-    for (size_t i = 2; i < fp.size(); i++)
-    {
-      JsonPath path;
-      markConstFlag(path, fp[i]);
-      paths.push_back(path);
-    }
     hasFound.assign(argSize, false);
-  }
 
   for (size_t i = 2; i < fp.size(); i++)
   {
-    JsonPath& currPath = paths[i - 2];
+    JSONPath& path = paths[i - 2];
 
-    if (!currPath.parsed)
+    if (!path.parsed)
     {
-      const string_view pathExp = fp[i]->data()->getStrVal(row, isNull);
-      const char* rawPath = pathExp.data();
-      if (isNull || json_path_setup(&currPath.p, fp[i]->data()->resultType().getCharset(),
-                                    (const uchar*)rawPath, (const uchar*)rawPath + pathExp.size()))
+      if (parseJSPath(path, row, fp[i]))
       {
         isNull = true;
         return false;
       }
-      currPath.parsed = currPath.constant;
 #ifdef MYSQL_GE_1009
-      hasNegPath |= currPath.p.types_used & JSON_PATH_NEGATIVE_INDEX;
+      hasNegPath |= path.p.types_used & JSON_PATH_NEGATIVE_INDEX;
 #endif
     }
   }
 
   json_engine_t jsEg;
   json_path_t p;
-  json_get_path_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)jsExp.data(),
-                      (const uchar*)jsExp.data() + jsExp.size(), &p);
+  json_get_path_start(&jsEg, getCharset(fp[0]), (const uchar*)js.data(), (const uchar*)js.data() + js.size(),
+                      &p);
 
   bool result = false;
   int needFound = 0;
@@ -118,12 +106,13 @@ bool Func_json_contains_path::getBoolVal(Row& row, FunctionParm& fp, bool& isNul
 
     for (int restSize = argSize, curr = 0; restSize > 0; restSize--, curr++)
     {
-      JsonPath& currPath = paths[curr];
+      JSONPath& path = paths[curr];
 #ifdef MYSQL_GE_1009
-      if (jsonPathCompare(&currPath.p, &p, jsEg.value_type, arrayCounters) >= 0)
+      int cmp = cmpJSPath(&path.p, &p, jsEg.value_type, arrayCounters);
 #else
-      if (jsonPathCompare(&currPath.p, &p, jsEg.value_type) >= 0)
+      int cmp = cmpJSPath(&path.p, &p, jsEg.value_type);
 #endif
+      if (cmp >= 0)
       {
         if (isModeOne)
         {

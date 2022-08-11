@@ -23,55 +23,33 @@ CalpontSystemCatalog::ColType Func_json_array_append::operationType(FunctionParm
 string Func_json_array_append::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                          execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
+  const string_view js = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
-  const CHARSET_INFO* cs = fp[0]->data()->resultType().getCharset();
+  const CHARSET_INFO* cs = getCharset(fp[0]);
 
   json_engine_t jsEg;
   const uchar* arrEnd;
   size_t strRestLen;
-  string ret;
-  ret.reserve(jsExp.size() + 8);
+  string retJS;
+  retJS.reserve(js.size() + padding);
 
-  if (paths.size() == 0)
-  {
-    for (size_t i = 1; i < fp.size(); i += 2)
-    {
-      JsonPath path;
-      markConstFlag(path, fp[i]);
-      paths.push_back(path);
-    }
-  }
+  initJSPaths(paths, fp, 1, 2);
 
-  string rawJS{jsExp};
+  string tmpJS{js};
   for (size_t i = 1, j = 0; i < fp.size(); i += 2, j++)
   {
-    const char* js = rawJS.data();
-    const size_t jsLen = rawJS.size();
-    JsonPath& currPath = paths[j];
-    if (!currPath.parsed)
-    {
-      const string_view pathExp = fp[i]->data()->getStrVal(row, isNull);
-      const char* rawPath = pathExp.data();
-      if (isNull || pathSetupNwc(&currPath.p, fp[i]->data()->resultType().getCharset(), (const uchar*)rawPath,
-                                 (const uchar*)rawPath + pathExp.size()))
-        goto error;
-      currPath.parsed = currPath.constant;
-    }
-
-    json_scan_start(&jsEg, cs, (const uchar*)js, (const uchar*)js + jsLen);
-
-    currPath.currStep = currPath.p.steps;
-
-    if (jsonFindPath(&jsEg, &currPath.p, &currPath.currStep))
-    {
-      if (jsEg.s.error)
-      {
-      }
+    const char* rawJS = tmpJS.data();
+    const size_t jsLen = tmpJS.size();
+    JSONPath& path = paths[j];
+    if (!path.parsed && parseJSPath(path, row, fp[i], false))
       goto error;
-    }
+
+    initJSEngine(jsEg, cs, tmpJS);
+
+    if (locateJSPath(jsEg, path))
+      goto error;
 
     if (json_read_value(&jsEg))
       goto error;
@@ -83,21 +61,21 @@ string Func_json_array_append::getStrVal(rowgroup::Row& row, FunctionParm& fp, b
         goto error;
 
       arrEnd = jsEg.s.c_str - jsEg.sav_c_len;
-      strRestLen = jsLen - (arrEnd - (const uchar*)js);
-      ret.append(js, arrEnd - (const uchar*)js);
+      strRestLen = jsLen - (arrEnd - (const uchar*)rawJS);
+      retJS.append(rawJS, arrEnd - (const uchar*)rawJS);
       if (itemSize)
-        ret.append(", ");
-      if (appendJSValue(ret, cs, row, fp[i + 1]))
+        retJS.append(", ");
+      if (appendJSValue(retJS, cs, row, fp[i + 1]))
         goto error;
 
-      ret.append((const char*)arrEnd, strRestLen);
+      retJS.append((const char*)arrEnd, strRestLen);
     }
     else
     {
       const uchar *start, *end;
 
       /* Wrap as an array. */
-      ret.append(js, (const char*)jsEg.value_begin - js);
+      retJS.append(rawJS, (const char*)jsEg.value_begin - rawJS);
       start = jsEg.value_begin;
 
       if (jsEg.value_type == JSON_VALUE_OBJECT)
@@ -109,28 +87,27 @@ string Func_json_array_append::getStrVal(rowgroup::Row& row, FunctionParm& fp, b
       else
         end = jsEg.value_end;
 
-      ret.append("[");
-      ret.append((const char*)start, end - start);
-      ret.append(", ");
-      if (appendJSValue(ret, cs, row, fp[i + 1]))
+      retJS.append("[");
+      retJS.append((const char*)start, end - start);
+      retJS.append(", ");
+      if (appendJSValue(retJS, cs, row, fp[i + 1]))
         goto error;
-      ret.append("]");
-      ret.append((const char*)jsEg.s.c_str, js + jsLen - (const char*)jsEg.s.c_str);
+      retJS.append("]");
+      retJS.append((const char*)jsEg.s.c_str, rawJS + jsLen - (const char*)jsEg.s.c_str);
     }
 
-    // rawJS save the json string for next loop
-    rawJS.swap(ret);
-    ret.clear();
+    // tmpJS save the json string for next loop
+    tmpJS.swap(retJS);
+    retJS.clear();
   }
 
-  json_scan_start(&jsEg, cs, (const uchar*)rawJS.data(), (const uchar*)rawJS.data() + rawJS.size());
-
-  ret.clear();
-  if (doFormat(&jsEg, ret, Func_json_format::LOOSE))
+  initJSEngine(jsEg, cs, tmpJS);
+  retJS.clear();
+  if (doFormat(&jsEg, retJS, Func_json_format::LOOSE))
     goto error;
 
   isNull = false;
-  return ret;
+  return retJS;
 
 error:
   isNull = true;

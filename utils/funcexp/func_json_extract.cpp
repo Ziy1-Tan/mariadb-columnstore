@@ -1,3 +1,4 @@
+#include <type_traits>
 #include "functor_json.h"
 #include "functioncolumn.h"
 #include "rowgroup.h"
@@ -10,40 +11,24 @@ using namespace rowgroup;
 #include "jsonhelpers.h"
 using namespace funcexp::helpers;
 
-namespace
-{
-static bool pathExactMatch(const vector<funcexp::JsonPath>& paths, const json_path_t* p,
-                           json_value_types valType, const int* arrayCounter = nullptr)
-{
-  for (size_t curr = 0; curr < paths.size(); curr++)
-  {
-#ifdef MYSQL_GE_1009
-    if (jsonPathCompare(&paths[curr].p, p, valType, arrayCounter) == 0)
-#else
-    if (jsonPathCompare(&paths[curr].p, p, valType) == 0)
-#endif
-      return true;
-  }
-  return false;
-}
-}  // namespace
-
 namespace funcexp
 {
 int Func_json_extract::doExtract(Row& row, FunctionParm& fp, json_value_types* type, string& retJS,
                                  bool compareWhole = true)
 {
   bool isNull = false;
-  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
+  const string_view js = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return 1;
-  const char* rawJS = jsExp.data();
+  const char* rawJS = js.data();
   json_engine_t jsEg, savJSEg;
   json_path_t p;
   const uchar* value;
   bool notFirstVal = false;
   size_t valLen;
   bool mayMulVal;
+  int wildcards;
+  bool isMatch;
 #ifdef MYSQL_GE_1009
   int arrayCounter[JSON_DEPTH_LIMIT];
   bool hasNegPath = false;
@@ -51,42 +36,26 @@ int Func_json_extract::doExtract(Row& row, FunctionParm& fp, json_value_types* t
   const size_t argSize = fp.size();
   string tmp;
 
-  if (paths.size() == 0)
-  {
-    for (size_t i = 1; i < argSize; i++)
-    {
-      JsonPath path;
-      markConstFlag(path, fp[i]);
-      paths.push_back(path);
-    }
-  }
+  initJSPaths(paths, fp, 1, 1);
 
   for (size_t i = 1; i < argSize; i++)
   {
-    JsonPath& currPath = paths[i - 1];
-    currPath.p.types_used = JSON_PATH_KEY_NULL;
-    if (!currPath.parsed)
-    {
-      const string_view pathExp = fp[i]->data()->getStrVal(row, isNull);
-      const char* rawPath = pathExp.data();
+    JSONPath& path = paths[i - 1];
+    path.p.types_used = JSON_PATH_KEY_NULL;
+    if (!path.parsed && parseJSPath(path, row, fp[i]))
+      goto error;
 
-      if (isNull || json_path_setup(&currPath.p, fp[i]->data()->resultType().getCharset(),
-                                    (const uchar*)rawPath, (const uchar*)rawPath + pathExp.size()))
-        goto error;
-
-      currPath.parsed = currPath.constant;
 #ifdef MYSQL_GE_1009
-      hasNegPath |= currPath.p.types_used & JSON_PATH_NEGATIVE_INDEX;
+    hasNegPath |= path.p.types_used & JSON_PATH_NEGATIVE_INDEX;
 #endif
-    }
   }
 
 #ifdef MYSQL_GE_1009
-  mayMulVal = argSize > 2 ||
-              (paths[0].p.types_used & (JSON_PATH_WILD | JSON_PATH_DOUBLE_WILD | JSON_PATH_ARRAY_RANGE));
+  wildcards = (JSON_PATH_WILD | JSON_PATH_DOUBLE_WILD | JSON_PATH_ARRAY_RANGE);
 #else
-  mayMulVal = argSize > 2 || (paths[0].p.types_used & (JSON_PATH_WILD | JSON_PATH_DOUBLE_WILD));
+  wildcards = (JSON_PATH_WILD | JSON_PATH_DOUBLE_WILD);
 #endif
+  mayMulVal = argSize > 2 || (paths[0].p.types_used & wildcards);
 
   *type = mayMulVal ? JSON_VALUE_ARRAY : JSON_VALUE_NULL;
 
@@ -97,8 +66,7 @@ int Func_json_extract::doExtract(Row& row, FunctionParm& fp, json_value_types* t
       retJS.append("[");
   }
 
-  json_get_path_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)rawJS,
-                      (const uchar*)rawJS + jsExp.size(), &p);
+  json_get_path_start(&jsEg, getCharset(fp[0]), (const uchar*)rawJS, (const uchar*)rawJS + js.size(), &p);
 
   while (json_get_path_next(&jsEg, &p) == 0)
   {
@@ -106,22 +74,24 @@ int Func_json_extract::doExtract(Row& row, FunctionParm& fp, json_value_types* t
     if (hasNegPath && jsEg.value_type == JSON_VALUE_ARRAY &&
         json_skip_array_and_count(&jsEg, arrayCounter + (p.last_step - p.steps)))
       goto error;
-    if (!pathExactMatch(paths, &p, jsEg.value_type, arrayCounter))
-      continue;
-#else
-    if (!pathExactMatch(paths, &p, jsEg.value_type))
-      continue;
 #endif
 
-    value = jsEg.value_begin;
+#ifdef MYSQL_GE_1009
+    isMatch = matchJSPath(paths, &p, jsEg.value_type, arrayCounter, false);
+#else
+    isMatch = matchJSPath(paths, &p, jsEg.value_type, nullptr, false);
+#endif
+    if (!isMatch)
+      continue;
 
+    value = jsEg.value_begin;
     if (*type == JSON_VALUE_NULL)
       *type = jsEg.value_type;
 
     /* we only care about the first found value */
     if (!compareWhole)
     {
-      retJS = jsExp;
+      retJS = js;
       return 0;
     }
 
@@ -164,8 +134,7 @@ int Func_json_extract::doExtract(Row& row, FunctionParm& fp, json_value_types* t
   if (mayMulVal)
     retJS.append("]");
 
-  json_scan_start(&jsEg, fp[0]->data()->resultType().getCharset(), (const uchar*)retJS.data(),
-                  (const uchar*)retJS.data() + retJS.size());
+  initJSEngine(jsEg, getCharset(fp[0]), retJS);
   if (doFormat(&jsEg, tmp, Func_json_format::LOOSE))
     goto error;
 
@@ -211,7 +180,7 @@ int64_t Func_json_extract::getIntVal(rowgroup::Row& row, FunctionParm& fp, bool&
       {
         char* end;
         int err;
-        ret = fp[0]->data()->resultType().getCharset()->strntoll(retJS.data(), retJS.size(), 10, &end, &err);
+        ret = getCharset(fp[0])->strntoll(retJS.data(), retJS.size(), 10, &end, &err);
         break;
       }
       case JSON_VALUE_TRUE: ret = 1; break;
@@ -237,7 +206,7 @@ double Func_json_extract::getDoubleVal(rowgroup::Row& row, FunctionParm& fp, boo
       {
         char* end;
         int err;
-        ret = fp[0]->data()->resultType().getCharset()->strntod(retJS.data(), retJS.size(), &end, &err);
+        ret = getCharset(fp[0])->strntod(retJS.data(), retJS.size(), &end, &err);
         break;
       }
       case JSON_VALUE_TRUE: ret = 1.0; break;

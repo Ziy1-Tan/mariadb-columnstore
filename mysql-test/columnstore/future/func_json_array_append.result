@@ -4,7 +4,7 @@ USE json_array_append_db;
 # ----------------------------------------------------------------------
 # Test of JSON_ARRAY_APPEND function.
 # ----------------------------------------------------------------------
-CREATE TABLE t1(a TEXT, p TEXT, v TEXT) ENGINE = columnstore;
+CREATE TABLE t1(a TEXT, p TEXT, v TEXT) ENGINE = COLUMNSTORE;
 INSERT INTO
 t1
 VALUES
@@ -53,7 +53,7 @@ arrary	path	value	result
 {"a": "foo", "b": [1,2,3], "c": ["apple","pear"]}	$.b	4	{"a": "foo", "b": [1, 2, 3, "4"], "c": ["apple", "pear"]}
 {"a": "foo", "b": [1,2,3], "c": ["apple","pear"]}	$.c	grape	{"a": "foo", "b": [1, 2, 3], "c": ["apple", "pear", "grape"]}
 # NULL args
-CREATE TABLE t2(a TEXT) ENGINE = columnstore;
+CREATE TABLE t2(a TEXT) ENGINE = COLUMNSTORE;
 INSERT INTO
 t2
 VALUES

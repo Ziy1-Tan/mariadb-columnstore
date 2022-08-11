@@ -279,19 +279,14 @@ bool Func_json_overlaps::getBoolVal(Row& row, FunctionParm& fp, bool& isNull,
                                     CalpontSystemCatalog::ColType& type)
 {
   bool isNullJS1 = false, isNullJS2 = false;
-  const string_view jsExp1 = fp[0]->data()->getStrVal(row, isNullJS1);
-  const string_view jsExp2 = fp[1]->data()->getStrVal(row, isNullJS2);
+  const string_view js1 = fp[0]->data()->getStrVal(row, isNullJS1);
+  const string_view js2 = fp[1]->data()->getStrVal(row, isNullJS2);
   if (isNullJS1 || isNullJS2)
     return false;
 
-  const char* rawJS1 = jsExp1.data();
-  const char* rawJS2 = jsExp2.data();
-
   json_engine_t jsEg1, jsEg2;
-  json_scan_start(&jsEg1, fp[0]->data()->resultType().getCharset(), (const uchar*)rawJS1,
-                  (const uchar*)rawJS1 + jsExp1.size());
-  json_scan_start(&jsEg2, fp[1]->data()->resultType().getCharset(), (const uchar*)rawJS2,
-                  (const uchar*)rawJS2 + jsExp2.size());
+  initJSEngine(jsEg1, getCharset(fp[0]), js1);
+  initJSEngine(jsEg2, getCharset(fp[1]), js2);
 
   if (json_read_value(&jsEg1) || json_read_value(&jsEg2))
     return false;

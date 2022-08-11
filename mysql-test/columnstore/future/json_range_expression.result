@@ -160,6 +160,36 @@ j	p	result
 [10, 20, [30, 40]]	$[2][*]	[30, 40]
 [10, 20, [{"a":3}, 30, 40]]	$[2][*]	[{"a": 3}, 30, 40]
 {"foo": "foobar"}	$	{"foo": "foobar"}
+
+# JSON_EXTRACT
+
+CREATE TABLE t6(j TEXT, f TEXT, v TEXT, e TEXT, p TEXT) ENGINE = COLUMNSTORE;
+SET
+@j = '["abc", [{"k": "10"}, "def"], {"x":"abc"}, {"y":"bcd"}]';
+INSERT INTO
+t6
+VALUES
+(@j, 'all', 'abc', NULL, '$'),
+(@j, 'all', '10', NULL, '$'),
+(@j, 'all', '10', NULL, '$[*]'),
+(@j, 'all', '10', NULL, '$[*][0].k'),
+(@j, 'all', '10', NULL, '$**.k');
+SELECT
+j AS json,
+f AS return_arg,
+v AS search_str,
+e AS escape_char,
+p AS path,
+JSON_SEARCH(j, f, v, NULL, p) AS result
+FROM
+t6;
+json	return_arg	search_str	escape_char	path	result
+["abc", [{"k": "10"}, "def"], {"x":"abc"}, {"y":"bcd"}]	all	abc	NULL	$	["$[0]", "$[2].x"]
+["abc", [{"k": "10"}, "def"], {"x":"abc"}, {"y":"bcd"}]	all	10	NULL	$	"$[1][0].k"
+["abc", [{"k": "10"}, "def"], {"x":"abc"}, {"y":"bcd"}]	all	10	NULL	$[*]	"$[1][0].k"
+["abc", [{"k": "10"}, "def"], {"x":"abc"}, {"y":"bcd"}]	all	10	NULL	$[*][0].k	"$[1][0].k"
+["abc", [{"k": "10"}, "def"], {"x":"abc"}, {"y":"bcd"}]	all	10	NULL	$**.k	"$[1][0].k"
+DROP TABLE t6;
 DROP TABLE t5;
 DROP TABLE t4;
 DROP TABLE t3;

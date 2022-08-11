@@ -10,7 +10,7 @@ USE json_insert_de;
 --echo # ----------------------------------------------------------------------
 --echo # Test of JSON_INSERT|REPLACE|SET function.
 --echo # ----------------------------------------------------------------------
-CREATE TABLE t1(j TEXT, p TEXT, v TEXT) ENGINE = columnstore;
+CREATE TABLE t1(j TEXT, p TEXT, v TEXT) ENGINE = COLUMNSTORE;
 
 INSERT INTO
     t1

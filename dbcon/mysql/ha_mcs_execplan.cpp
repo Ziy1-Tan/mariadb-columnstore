@@ -3564,8 +3564,8 @@ ReturnedColumn* buildBooleanConstantColumn(Item* item, gp_walk_info& gwi, bool& 
       }
     }
   }
-  cc = new ConstantColumnSInt(colType_MysqlToIDB(item), (int64_t)item->val_int() ? "true" : "false",
-                              (int64_t)item->val_int());
+  int64_t val = static_cast<int64_t>(item->val_int());
+  cc = new ConstantColumnSInt(colType_MysqlToIDB(item), val ? "true" : "false", val);
 
   if (cc)
     cc->timeZone(gwi.timeZone);

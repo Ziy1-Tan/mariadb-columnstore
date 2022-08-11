@@ -23,72 +23,56 @@ CalpontSystemCatalog::ColType Func_json_remove::operationType(FunctionParm& fp,
 string Func_json_remove::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                    execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
+  const string_view js = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
   json_engine_t jsEg;
 
+  int jsErr = 0;
   json_string_t keyName;
-  const CHARSET_INFO* cs = fp[0]->data()->resultType().getCharset();
+  const CHARSET_INFO* cs = getCharset(fp[0]);
   json_string_set_cs(&keyName, cs);
 
-  if (paths.size() == 0)
-  {
-    for (size_t i = 1; i < fp.size(); i++)
-    {
-      JsonPath path;
-      markConstFlag(path, fp[i]);
-      paths.push_back(path);
-    }
-  }
+  initJSPaths(paths, fp, 1, 1);
 
-  string ret;
-  string rawJS{jsExp};
+  string retJS;
+  string tmpJS{js};
   for (size_t i = 1, j = 0; i < fp.size(); i++, j++)
   {
-    const char* js = rawJS.data();
-    const size_t jsLen = rawJS.size();
+    const char* rawJS = tmpJS.data();
+    const size_t jsLen = tmpJS.size();
 
-    JsonPath& currPath = paths[j];
+    JSONPath& path = paths[j];
     const json_path_step_t* lastStep;
     const char *remStart = nullptr, *remEnd = nullptr;
     IntType itemSize = 0;
 
-    if (!currPath.parsed)
+    if (!path.parsed)
     {
-      const string_view pathExp = fp[i]->data()->getStrVal(row, isNull);
-      const char* rawPath = pathExp.data();
-      if (isNull || pathSetupNwc(&currPath.p, fp[i]->data()->resultType().getCharset(), (const uchar*)rawPath,
-                                 (const uchar*)rawPath + pathExp.size()))
+      if (parseJSPath(path, row, fp[i], false))
         goto error;
 
-      currPath.p.last_step--;
-      if (currPath.p.last_step < currPath.p.steps)
+      path.p.last_step--;
+      if (path.p.last_step < path.p.steps)
       {
-        currPath.p.s.error = TRIVIAL_PATH_NOT_ALLOWED;
+        path.p.s.error = TRIVIAL_PATH_NOT_ALLOWED;
         goto error;
       }
-      currPath.parsed = currPath.constant;
     }
 
-    json_scan_start(&jsEg, cs, (const uchar*)js, (const uchar*)js + jsLen);
+    initJSEngine(jsEg, cs, rawJS);
 
-    if (currPath.p.last_step < currPath.p.steps)
+    if (path.p.last_step < path.p.steps)
       goto v_found;
 
-    currPath.currStep = currPath.p.steps;
-
-    if (jsonFindPath(&jsEg, &currPath.p, &currPath.currStep))
-    {
-      if (jsEg.s.error)
-        goto error;
-    }
+    if (locateJSPath(jsEg, path, &jsErr) && jsErr)
+      goto error;
 
     if (json_read_value(&jsEg))
       goto error;
 
-    lastStep = currPath.p.last_step + 1;
+    lastStep = path.p.last_step + 1;
     if (lastStep->type & JSON_PATH_ARRAY)
     {
       if (jsEg.value_type != JSON_VALUE_ARRAY)
@@ -155,25 +139,23 @@ string Func_json_remove::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& i
       goto error;
     remEnd = (jsEg.state == JST_VALUE && itemSize == 0) ? (const char*)jsEg.s.c_str
                                                         : (const char*)(jsEg.s.c_str - jsEg.sav_c_len);
-    ret.clear();
-
-    ret.append(js, remStart - js);
+    retJS.clear();
+    retJS.append(rawJS, remStart - rawJS);
     if (jsEg.state == JST_KEY && itemSize > 0)
-      ret.append(",");
-    ret.append(remEnd, js + jsLen - remEnd);
+      retJS.append(",");
+    retJS.append(remEnd, rawJS + jsLen - remEnd);
 
-    rawJS.swap(ret);
-    ret.clear();
+    tmpJS.swap(retJS);
+    retJS.clear();
   }
 
-  json_scan_start(&jsEg, cs, (const uchar*)rawJS.data(), (const uchar*)rawJS.data() + rawJS.size());
-
-  ret.clear();
-  if (doFormat(&jsEg, ret, Func_json_format::LOOSE))
+  initJSEngine(jsEg, cs, tmpJS);
+  retJS.clear();
+  if (doFormat(&jsEg, retJS, Func_json_format::LOOSE))
     goto error;
 
   isNull = false;
-  return ret;
+  return retJS;
 
 error:
   isNull = true;

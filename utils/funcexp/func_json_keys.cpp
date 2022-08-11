@@ -54,68 +54,46 @@ CalpontSystemCatalog::ColType Func_json_keys::operationType(FunctionParm& fp,
 string Func_json_keys::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                  execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
+  const string_view js = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
-  json_engine_t je;
   IntType keySize = 0;
   string ret;
-
-  json_scan_start(&je, fp[0]->data()->resultType().getCharset(), (const uchar*)jsExp.data(),
-                  (const uchar*)jsExp.data() + jsExp.size());
+  json_engine_t jsEg;
+  initJSEngine(jsEg, getCharset(fp[0]), js);
 
   if (fp.size() > 1)
   {
-    if (!path.parsed)
-    {
-      // check if path column is const
-      if (!path.constant)
-        markConstFlag(path, fp[1]);
-
-      const string_view pathExp = fp[1]->data()->getStrVal(row, isNull);
-      const char* rawPath = pathExp.data();
-      if (isNull)
-        return "";
-      if (pathSetupNwc(&path.p, fp[1]->data()->resultType().getCharset(), (const uchar*)rawPath,
-                       (const uchar*)rawPath + pathExp.size()))
-        goto error;
-
-      path.parsed = path.constant;
-    }
-
-    path.currStep = path.p.steps;
-    if (jsonFindPath(&je, &path.p, &path.currStep))
-    {
-      if (je.s.error)
-      {
-      }
+    if (!path.parsed && parseJSPath(path, row, fp[1], false))
       goto error;
-    }
+
+    if (locateJSPath(jsEg, path))
+      goto error;
   }
 
-  if (json_read_value(&je))
+  if (json_read_value(&jsEg))
     goto error;
 
-  if (je.value_type != JSON_VALUE_OBJECT)
+  if (jsEg.value_type != JSON_VALUE_OBJECT)
     goto error;
 
   ret.append("[");
-  while (json_scan_next(&je) == 0 && je.state != JST_OBJ_END)
+  while (json_scan_next(&jsEg) == 0 && jsEg.state != JST_OBJ_END)
   {
     const uchar *keyStart, *keyEnd;
     int keyLen;
 
-    switch (je.state)
+    switch (jsEg.state)
     {
       case JST_KEY:
-        keyStart = je.s.c_str;
+        keyStart = jsEg.s.c_str;
         do
         {
-          keyEnd = je.s.c_str;
-        } while (json_read_keyname_chr(&je) == 0);
+          keyEnd = jsEg.s.c_str;
+        } while (json_read_keyname_chr(&jsEg) == 0);
 
-        if (unlikely(je.s.error))
+        if (unlikely(jsEg.s.error))
           goto error;
 
         keyLen = (int)(keyEnd - keyStart);
@@ -132,14 +110,14 @@ string Func_json_keys::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isN
         break;
       case JST_OBJ_START:
       case JST_ARRAY_START:
-        if (json_skip_level(&je))
+        if (json_skip_level(&jsEg))
           break;
         break;
       default: break;
     }
   }
 
-  if (unlikely(!je.s.error))
+  if (unlikely(!jsEg.s.error))
   {
     ret.append("]");
     return ret;

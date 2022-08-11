@@ -13,7 +13,7 @@ using namespace funcexp::helpers;
 
 namespace
 {
-int doMerge(string& ret, json_engine_t* jsEg1, json_engine_t* jsEg2)
+int doMerge(string& retJS, json_engine_t* jsEg1, json_engine_t* jsEg2)
 {
   if (json_read_value(jsEg1) || json_read_value(jsEg2))
     return 1;
@@ -28,7 +28,7 @@ int doMerge(string& ret, json_engine_t* jsEg1, json_engine_t* jsEg2)
 
     json_string_set_cs(&keyName, jsEg1->s.cs);
 
-    ret.append("{");
+    retJS.append("{");
     while (json_scan_next(jsEg1) == 0 && jsEg1->state != JST_OBJ_END)
     {
       const uchar *keyStart, *keyEnd;
@@ -47,13 +47,13 @@ int doMerge(string& ret, json_engine_t* jsEg1, json_engine_t* jsEg2)
         firstKey = 0;
       else
       {
-        ret.append(", ");
+        retJS.append(", ");
         *jsEg2 = savJSEg2;
       }
 
-      ret.append("\"");
-      ret.append((const char*)keyStart, (size_t)(keyEnd - keyStart));
-      ret.append("\":");
+      retJS.append("\"");
+      retJS.append((const char*)keyStart, (size_t)(keyEnd - keyStart));
+      retJS.append("\":");
 
       while (json_scan_next(jsEg2) == 0 && jsEg2->state != JST_OBJ_END)
       {
@@ -68,7 +68,7 @@ int doMerge(string& ret, json_engine_t* jsEg1, json_engine_t* jsEg2)
         }
 
         /* Json_2 has same key as Json_1. Merge them. */
-        if ((ires = doMerge(ret, jsEg1, jsEg2)))
+        if ((ires = doMerge(retJS, jsEg1, jsEg2)))
           return ires;
         goto merged_j1;
       }
@@ -80,7 +80,7 @@ int doMerge(string& ret, json_engine_t* jsEg1, json_engine_t* jsEg2)
       if (json_skip_key(jsEg1))
         return 1;
 
-      ret.append((const char*)keyStart, jsEg1->s.c_str - keyStart);
+      retJS.append((const char*)keyStart, jsEg1->s.c_str - keyStart);
 
     merged_j1:
       continue;
@@ -126,19 +126,19 @@ int doMerge(string& ret, json_engine_t* jsEg1, json_engine_t* jsEg2)
       if (firstKey)
         firstKey = 0;
       else
-        ret.append(", ");
+        retJS.append(", ");
 
       if (json_skip_key(jsEg2))
         return 1;
 
-      ret.append("\"");
-      ret.append((const char*)keyStart, jsEg2->s.c_str - keyStart);
+      retJS.append("\"");
+      retJS.append((const char*)keyStart, jsEg2->s.c_str - keyStart);
 
     continue_j2:
       continue;
     }
 
-    ret.append("}");
+    retJS.append("}");
   }
   else
   {
@@ -157,7 +157,7 @@ int doMerge(string& ret, json_engine_t* jsEg1, json_engine_t* jsEg2)
     }
     else
     {
-      ret.append("[");
+      retJS.append("[");
 
       if (jsEg1->value_type == JSON_VALUE_OBJECT)
       {
@@ -169,7 +169,7 @@ int doMerge(string& ret, json_engine_t* jsEg1, json_engine_t* jsEg2)
         end1 = jsEg1->value_end;
     }
 
-    ret.append((const char*)beg1, end1 - beg1);
+    retJS.append((const char*)beg1, end1 - beg1);
 
     if (json_value_scalar(jsEg2))
     {
@@ -194,12 +194,12 @@ int doMerge(string& ret, json_engine_t* jsEg1, json_engine_t* jsEg2)
     }
 
     if (itemSize1 && itemSize2)
-      ret.append(", ");
+      retJS.append(", ");
 
-    ret.append((const char*)beg2, end2 - beg2);
+    retJS.append((const char*)beg2, end2 - beg2);
 
     if (jsEg2->value_type != JSON_VALUE_ARRAY)
-      ret.append("]");
+      retJS.append("]");
   }
 
   return 0;
@@ -217,44 +217,41 @@ CalpontSystemCatalog::ColType Func_json_merge::operationType(FunctionParm& fp,
 string Func_json_merge::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& isNull,
                                   execplan::CalpontSystemCatalog::ColType& type)
 {
-  const string_view jsExp = fp[0]->data()->getStrVal(row, isNull);
+  const string_view js = fp[0]->data()->getStrVal(row, isNull);
   if (isNull)
     return "";
 
-  const CHARSET_INFO* js1CS = fp[0]->data()->resultType().getCharset();
+  const CHARSET_INFO* js1CS = getCharset(fp[0]);
 
   json_engine_t jsEg1, jsEg2;
 
-  string rawJS{jsExp};
-  string ret;
+  string tmpJS{js};
+  string retJS;
 
   for (size_t i = 1; i < fp.size(); i++)
   {
-    const string_view jsExp2 = fp[i]->data()->getStrVal(row, isNull);
+    const string_view js2 = fp[i]->data()->getStrVal(row, isNull);
     if (isNull)
       goto error;
 
-    json_scan_start(&jsEg1, js1CS, (const uchar*)rawJS.data(), (const uchar*)rawJS.data() + rawJS.size());
+    initJSEngine(jsEg1, js1CS, tmpJS);
+    initJSEngine(jsEg2, getCharset(fp[i]), js2);
 
-    json_scan_start(&jsEg2, fp[i]->data()->resultType().getCharset(), (const uchar*)jsExp2.data(),
-                    (const uchar*)jsExp2.data() + jsExp2.size());
-
-    if (doMerge(ret, &jsEg1, &jsEg2))
+    if (doMerge(retJS, &jsEg1, &jsEg2))
       goto error;
 
-    // rawJS save the merge result for next loop
-    rawJS.swap(ret);
-    ret.clear();
+    // tmpJS save the merge result for next loop
+    tmpJS.swap(retJS);
+    retJS.clear();
   }
 
-  json_scan_start(&jsEg1, js1CS, (const uchar*)rawJS.data(), (const uchar*)rawJS.data() + rawJS.size());
-
-  ret.clear();
-  if (doFormat(&jsEg1, ret, Func_json_format::LOOSE))
+  initJSEngine(jsEg1, js1CS, tmpJS);
+  retJS.clear();
+  if (doFormat(&jsEg1, retJS, Func_json_format::LOOSE))
     goto error;
 
   isNull = false;
-  return ret;
+  return retJS;
 
 error:
   isNull = true;

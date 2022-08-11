@@ -113,6 +113,35 @@ SELECT
 FROM
     t5;
 
+--echo 
+--echo # JSON_EXTRACT
+--echo 
+CREATE TABLE t6(j TEXT, f TEXT, v TEXT, e TEXT, p TEXT) ENGINE = COLUMNSTORE;
+
+SET
+    @j = '["abc", [{"k": "10"}, "def"], {"x":"abc"}, {"y":"bcd"}]';
+
+INSERT INTO
+    t6
+VALUES
+    (@j, 'all', 'abc', NULL, '$'),
+    (@j, 'all', '10', NULL, '$'),
+    (@j, 'all', '10', NULL, '$[*]'),
+    (@j, 'all', '10', NULL, '$[*][0].k'),
+    (@j, 'all', '10', NULL, '$**.k');
+
+SELECT
+    j AS json,
+    f AS return_arg,
+    v AS search_str,
+    e AS escape_char,
+    p AS path,
+    JSON_SEARCH(j, f, v, NULL, p) AS result
+FROM
+    t6;
+
+DROP TABLE t6;
+
 DROP TABLE t5;
 
 DROP TABLE t4;

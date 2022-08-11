@@ -11,7 +11,7 @@ using namespace joblist;
 
 namespace funcexp
 {
-bool JSEngineScanner::checkAndGetComplexVal(string& ret, int* error)
+bool JSONEgWrapper::checkAndGetComplexVal(string& ret, int* error)
 {
   if (json_value_scalar(this))
   {
@@ -42,7 +42,7 @@ string Func_json_query::getStrVal(rowgroup::Row& row, FunctionParm& fp, bool& is
                                   execplan::CalpontSystemCatalog::ColType& type)
 {
   string ret;
-  isNull = JSPathExtractor::extract(ret, row, fp[0], fp[1]);
+  isNull = JSONPathWrapper::extract(ret, row, fp[0], fp[1]);
   return isNull ? "" : ret;
 }
 }  // namespace funcexp

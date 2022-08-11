@@ -9,7 +9,7 @@ USE json_object_db;
 --echo # ----------------------------------------------------------------------
 --echo # Test of JSON_OBJECT function.
 --echo # ----------------------------------------------------------------------
-CREATE TABLE t1(l TEXT) ENGINE = columnstore;
+CREATE TABLE t1(l TEXT) ENGINE = COLUMNSTORE;
 INSERT INTO t1 VALUES('a');
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 SELECT json_object(l) FROM t1;

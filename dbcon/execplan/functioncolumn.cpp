@@ -326,57 +326,43 @@ void FunctionColumn::unserialize(messageqcpp::ByteStream& b)
     fFunctor = fDynamicFunctor = new Func_decode();
 
   // Special treatment for json function contains the variable path. reset the variable path
-  Func_json_length* json_length = dynamic_cast<Func_json_length*>(fFunctor);
-  if (json_length)
+  if (dynamic_cast<Func_json_length*>(fFunctor))
     fFunctor = fDynamicFunctor = new Func_json_length();
 
-  Func_json_keys* json_keys = dynamic_cast<Func_json_keys*>(fFunctor);
-  if (json_keys)
+  if (dynamic_cast<Func_json_keys*>(fFunctor))
     fFunctor = fDynamicFunctor = new Func_json_keys();
 
-  Func_json_exists* json_exists = dynamic_cast<Func_json_exists*>(fFunctor);
-  if (json_exists)
+  if (dynamic_cast<Func_json_exists*>(fFunctor))
     fFunctor = fDynamicFunctor = new Func_json_exists();
 
-  Func_json_value* json_value = dynamic_cast<Func_json_value*>(fFunctor);
-  if (json_value)
+  if (dynamic_cast<Func_json_value*>(fFunctor))
     fFunctor = fDynamicFunctor = new Func_json_value();
 
-  Func_json_query* json_query = dynamic_cast<Func_json_query*>(fFunctor);
-  if (json_query)
+  if (dynamic_cast<Func_json_query*>(fFunctor))
     fFunctor = fDynamicFunctor = new Func_json_query();
 
-  Func_json_contains* json_contains = dynamic_cast<Func_json_contains*>(fFunctor);
-  if (json_contains)
+  if (dynamic_cast<Func_json_contains*>(fFunctor))
     fFunctor = fDynamicFunctor = new Func_json_contains();
 
-  Func_json_array_append* json_array_append = dynamic_cast<Func_json_array_append*>(fFunctor);
-  if (json_array_append)
+  if (dynamic_cast<Func_json_array_append*>(fFunctor))
     fFunctor = fDynamicFunctor = new Func_json_array_append();
 
-  Func_json_array_insert* json_array_insert = dynamic_cast<Func_json_array_insert*>(fFunctor);
-  if (json_array_insert)
+  if (dynamic_cast<Func_json_array_insert*>(fFunctor))
     fFunctor = fDynamicFunctor = new Func_json_array_insert();
 
-  Func_json_insert* json_insert = dynamic_cast<Func_json_insert*>(fFunctor);
-  if (json_insert)
-    fFunctor = fDynamicFunctor = new Func_json_insert(json_insert->getMode());
+  if (auto f = dynamic_cast<Func_json_insert*>(fFunctor))
+    fFunctor = fDynamicFunctor = new Func_json_insert(f->getMode());
 
-  Func_json_remove* json_remove = dynamic_cast<Func_json_remove*>(fFunctor);
-  if (json_remove)
+  if (dynamic_cast<Func_json_remove*>(fFunctor))
     fFunctor = fDynamicFunctor = new Func_json_remove();
 
-  Func_json_contains_path* json_contains_path = dynamic_cast<Func_json_contains_path*>(fFunctor);
-  if (json_contains_path)
+  if (dynamic_cast<Func_json_contains_path*>(fFunctor))
     fFunctor = fDynamicFunctor = new Func_json_contains_path();
 
-  // TODO: json_search implementation
-  // Func_json_search* json_search = dynamic_cast<Func_json_search*>(fFunctor);
-  // if (json_search)
-  //   fFunctor = fDynamicFunctor = new Func_json_search();
+  if (dynamic_cast<Func_json_search*>(fFunctor))
+    fFunctor = fDynamicFunctor = new Func_json_search();
 
-  Func_json_extract* json_extract = dynamic_cast<Func_json_extract*>(fFunctor);
-  if (json_extract)
+  if (dynamic_cast<Func_json_extract*>(fFunctor))
     fFunctor = fDynamicFunctor = new Func_json_extract();
 }
 

@@ -4,7 +4,7 @@ USE json_object_db;
 # ----------------------------------------------------------------------
 # Test of JSON_OBJECT function.
 # ----------------------------------------------------------------------
-CREATE TABLE t1(l TEXT) ENGINE = columnstore;
+CREATE TABLE t1(l TEXT) ENGINE = COLUMNSTORE;
 INSERT INTO t1 VALUES('a');
 SELECT json_object(l) FROM t1;
 ERROR 42000: Incorrect parameter count in the call to native function 'json_object'

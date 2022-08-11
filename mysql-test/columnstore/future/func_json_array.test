@@ -9,7 +9,7 @@ USE json_array_db;
 --echo # ----------------------------------------------------------------------
 --echo # Test of JSON_ARRAY function.
 --echo # ----------------------------------------------------------------------
-CREATE TABLE t1(l text) ENGINE = columnstore;
+CREATE TABLE t1(l text) ENGINE = COLUMNSTORE;
 INSERT INTO t1 VALUES('1');
 SELECT JSON_ARRAY() FROM t1;
 SELECT JSON_ARRAY(l) FROM t1;

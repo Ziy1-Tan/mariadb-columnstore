@@ -4,7 +4,7 @@ USE json_array_insert_db;
 # ----------------------------------------------------------------------
 # Test of JSON_ARRAY_INSERT function.
 # ----------------------------------------------------------------------
-CREATE TABLE t1(a TEXT, p TEXT, v TEXT) ENGINE = columnstore;
+CREATE TABLE t1(a TEXT, p TEXT, v TEXT) ENGINE = COLUMNSTORE;
 INSERT INTO
 t1
 VALUES
@@ -53,7 +53,7 @@ arrary	path	value	result
 {"a": "foo", "b": [1,2,3], "c": ["apple","pear"]}	$.b	4	NULL
 {"a": "foo", "b": [1,2,3], "c": ["apple","pear"]}	$.c	grape	NULL
 # NULL args
-CREATE TABLE t2(a TEXT) ENGINE = columnstore;
+CREATE TABLE t2(a TEXT) ENGINE = COLUMNSTORE;
 INSERT INTO
 t2
 VALUES
